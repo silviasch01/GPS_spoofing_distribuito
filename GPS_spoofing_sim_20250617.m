@@ -1,9 +1,18 @@
-function GPS_mobility_v4_prove
+function out = GPS_mobility_v4_prove(opts)
+	% opts (optional struct) overrides the default parameters below, e.g.
+	%   out = GPS_spoofing_sim_20250617(struct('PLOT',false,'N_spoofers',1));
+	% out returns the true/estimated positions so that other scripts (e.g.
+	% relative_distance_detection.m) can run detection tests on them.
+	if nargin < 1
+		opts = struct();
+	end
+	PLOT = getopt(opts,'PLOT',true);
+
 	% 1: Time Difference of Arrival
 	% 2: Linearized Gradient Descent
-	fixMethod = 2;
-	KALMAN_FILTER = false; % smoothing?
-	CONSENSUS = false;
+	fixMethod = getopt(opts,'fixMethod',2);
+	KALMAN_FILTER = getopt(opts,'KALMAN_FILTER',false); % smoothing?
+	CONSENSUS = getopt(opts,'CONSENSUS',false);
 
 	% list of [time(s), lat(°), lon(°), alt(m)];
 	WP = [0.0,  38.1, 13.3, 100.0; ...
@@ -22,10 +31,10 @@ function GPS_mobility_v4_prove
 	Nt = size(coords,1);
 
 	% expand the list of positions to a square (on the sphere) grid of positions
-	grid_step = 100;
+	grid_step = getopt(opts,'grid_step',100);
 	% grid_step = 2000;
 
-	grid_points = 5;
+	grid_points = getopt(opts,'grid_points',5);
 	coords_grid = grid_expand(coords,grid_points,grid_step);
 	Nusers = grid_points^2;
 	u_center = ceil(grid_points/2)+(ceil(grid_points/2)-1)*grid_points;
@@ -54,10 +63,10 @@ function GPS_mobility_v4_prove
 	% circumference centered around the spoofed area center_coords, with
 	% radius R_spoofers)
 	% N_spoofers = 24;
-	N_spoofers = 24;
+	N_spoofers = getopt(opts,'N_spoofers',24);
 	center_coords = [38.1, 13.3, 100];
 	if N_spoofers > 1
-		R_spoofers = 2500;
+		R_spoofers = getopt(opts,'R_spoofers',2500);
 	else
 		R_spoofers = 0;
 	end
@@ -86,15 +95,41 @@ function GPS_mobility_v4_prove
 		ylabel('Pt_spoof [dBm]')
 		grid on
 	else
-		Pt_spoof = 1e-3;
-		[measured_delay,delta_t] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
-			spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers);
+		Pt_spoof = getopt(opts,'Pt_spoof',1e-3);
+		% maximum number of satellites replaced by the spoofer for every user
+		max_spoofed_sats = getopt(opts,'max_spoofed_sats',1);
+		[measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
+			spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats);
+	end
+
+	% pseudorange noise (std in meters), independent for every measurement
+	sigma_pr = getopt(opts,'sigma_pr',0);
+	if sigma_pr > 0
+		measured_delay = measured_delay + ...
+			sigma_pr/physconst('LightSpeed')*randn(size(measured_delay));
 	end
 
 	% estimate the positions
 	% - fixMethod: TDoA or Gradient Descent
 	% - KALMAN_FILTER: KF smoothing
 	coords_est = coords_estimate(fixMethod,KALMAN_FILTER,measured_delay,pt_sat);
+
+	if nargout > 0
+		out.coords = coords;
+		out.coords_grid = coords_grid; % [time, lat1, lon1, alt1, lat2, ...]
+		out.coords_est = coords_est;   % [lat1, lon1, alt1, lat2, ...]
+		out.coords_spoof = coords_spoof;
+		out.center_coords = center_coords;
+		out.spoofer_coords = spoofer_coords;
+		out.delta_t = delta_t;
+		if exist('is_spoofed','var')
+			out.is_spoofed = is_spoofed; % (#times, #satellites, #users)
+		end
+		out.elevation = elevation;
+	end
+	if ~PLOT
+		return
+	end
 
 	% plot
 	dxlim = 2*max(max(coords_grid(:,3:3:end)-coords(:,3))); % lon
@@ -344,8 +379,11 @@ function [measured_delay,delta_t] = spoofing_sim_freespace(Pt_spoof,Gt_spoof,spo
 	% delay(sigma_delay<inf) = delay(sigma_delay<inf) + randn_delay(sigma_delay<inf);
 end
 
-function [measured_delay,delta_t] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
-		spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers)
+function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
+		spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats)
+	if nargin < 10
+		max_spoofed_sats = 1;
+	end
 
 	Nt = size(coords_grid,1);
 	Nusers = (size(coords_grid,2)-1)/3;
@@ -374,6 +412,7 @@ function [measured_delay,delta_t] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coord
 
 	elevation_drones= drone_elevation_from_spoofers(coords_grid, spoofer_coords,Nusers);
 	measured_delay = zeros(Nt,Nsats,Nusers);
+	is_spoofed = false(Nt,Nsats,Nusers);
 
 	for i = 1:Nt
 		for u = 1:Nusers
@@ -405,10 +444,11 @@ function [measured_delay,delta_t] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coord
 
 					Pr_spoofer = Pt_spoof*Gt_spoof*Gr/PL_linear;
 
-					if Pr_sat < Pr_spoofer && N_spoofed_sats==0
+					if Pr_sat < Pr_spoofer && N_spoofed_sats < max_spoofed_sats
 						measured_delay(i,sat,u) = delay_spoof(i,sat) - delta_t(i,u) ...
 							- (R_spoofers - spoofer_to_rx_distance)/c;
 						N_spoofed_sats = N_spoofed_sats + 1;
+						is_spoofed(i,sat,u) = true;
 					else
 						measured_delay(i,sat,u) = delay(i,sat,u) - delta_t(i,u);
 					end
@@ -937,6 +977,14 @@ end
 function distance = coords_distance(coords1,coords2)
 	R_Earth = physconst('EarthRadius');
 	distance = R_Earth*acos(coords_to_unitv(coords1)'*coords_to_unitv(coords2));
+end
+
+function v = getopt(opts,name,default)
+	if isfield(opts,name)
+		v = opts.(name);
+	else
+		v = default;
+	end
 end
 
 function currentfigure(nf)
