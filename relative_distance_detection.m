@@ -24,11 +24,9 @@
 % threshold.
 %
 % Scenarios (same trajectory/satellites/clock errors for each run):
-%   H0          : no spoofing
-%   single      : classical spoofing, 1 spoofer at the center, all satellites
-%   distr-1sat  : distributed spoofing (24 spoofers on a circle), as in the
-%                 default configuration of the simulator (1 spoofed sat/user)
-%   distr-all   : distributed spoofing, all satellites spoofed
+%   H0          : no spoofing (used only to set the thresholds for Pfa)
+%   distributed : distributed spoofing (24 spoofers on a circle), all the
+%                 satellites spoofed
 %
 % The formation spacing (grid_step) is swept: the formation distortion caused
 % by the distributed attack is proportional to the baselines, while the GNSS
@@ -47,10 +45,8 @@ Pfa = 0.01;                      % target false alarm probability
 Wint = 12;                       % D4 integration window [epochs] (12*5 s = 1 min)
 roc_step = 20;                   % grid_step used for the ROC figure
 
-scen(1) = struct('name','H0',         'opts',struct('Pt_spoof',0));
-scen(2) = struct('name','single',     'opts',struct('N_spoofers',1,'max_spoofed_sats',inf));
-scen(3) = struct('name','distr-1sat', 'opts',struct('N_spoofers',24,'max_spoofed_sats',1));
-scen(4) = struct('name','distr-all',  'opts',struct('N_spoofers',24,'max_spoofed_sats',inf));
+scen(1) = struct('name','H0',          'opts',struct('Pt_spoof',0));
+scen(2) = struct('name','distributed', 'opts',struct('N_spoofers',24,'max_spoofed_sats',inf));
 det_names = {'D1 collapse','D2 RSS','D3 max pair','D4 RSS integrated'};
 
 Nscen = numel(scen);

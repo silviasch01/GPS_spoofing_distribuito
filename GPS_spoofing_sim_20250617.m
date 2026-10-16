@@ -97,7 +97,7 @@ function out = GPS_mobility_v4_prove(opts)
 	else
 		Pt_spoof = getopt(opts,'Pt_spoof',1e-3);
 		% maximum number of satellites replaced by the spoofer for every user
-		max_spoofed_sats = getopt(opts,'max_spoofed_sats',1);
+		max_spoofed_sats = getopt(opts,'max_spoofed_sats',inf);
 		[measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
 			spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats);
 	end
@@ -382,7 +382,7 @@ end
 function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
 		spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats)
 	if nargin < 10
-		max_spoofed_sats = 1;
+		max_spoofed_sats = inf;
 	end
 
 	Nt = size(coords_grid,1);
