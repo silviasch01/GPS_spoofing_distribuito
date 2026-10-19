@@ -94,10 +94,20 @@ function out = GPS_mobility_v4_prove(opts)
 		xlabel('time index')
 		ylabel('Pt_spoof [dBm]')
 		grid on
+	elseif strcmpi(getopt(opts,'spoofMode','power'),'rigid')
+		% Null-space (rigid-translation) attack: an idealized coordinated
+		% distributed spoofer that knows the swarm geometry and imposes the
+		% SAME position offset Delta on every receiver, for every satellite.
+		% The absolute position is wrong by Delta, but all the relative
+		% distances between receivers are preserved exactly (up to pseudorange
+		% noise). This is the attack that lies in the null-space of any
+		% relative-distance / rigid-formation detector (e.g. Jansen 2016).
+		[measured_delay,delta_t,is_spoofed] = spoofing_sim_rigid(...
+			coords,coords_spoof,coords_grid,elevation,pt_sat);
 	else
 		Pt_spoof = getopt(opts,'Pt_spoof',1e-3);
 		% maximum number of satellites replaced by the spoofer for every user
-		max_spoofed_sats = getopt(opts,'max_spoofed_sats',1);
+		max_spoofed_sats = getopt(opts,'max_spoofed_sats',inf);
 		[measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
 			spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats);
 	end
@@ -319,6 +329,71 @@ function coords_est = coords_estimate(fixMethod,KALMAN_FILTER,measured_delay,pt_
 	end
 end
 
+% Null-space / rigid-translation attack model.
+%
+% Every receiver u is pushed by the SAME offset vector Delta(i) (in the
+% inertial frame used by gps_trace), equal to the displacement that moves the
+% true trajectory center onto the spoofed center. For every visible satellite
+% the measured delay is the geometric delay from that satellite to the
+% receiver's TRUE position shifted by Delta(i), minus the receiver clock
+% error. The spoofers are NOT moved: this only models the delays that an
+% idealized coordinated ground-based distributed spoofer would have to impose.
+%
+% Result: coords_est(u) = true_position(u) + Delta, so all pairwise distances
+% between receivers are preserved exactly (up to pseudorange noise), while the
+% absolute positions are wrong by Delta. This is invisible to any detector
+% that only checks the rigid formation geometry.
+function [measured_delay,delta_t,is_spoofed] = spoofing_sim_rigid(...
+		coords,coords_spoof,coords_grid,elevation,pt_sat)
+	c = physconst('LightSpeed');
+	Nt = size(coords_grid,1);
+	Nusers = (size(coords_grid,2)-1)/3;
+	Nsats = size(elevation,2);
+
+	delta_t = 2*rand(1,Nusers)-1;
+	delta_t = repmat(delta_t,[Nt,1]);
+
+	measured_delay = zeros(Nt,Nsats,Nusers);
+	is_spoofed = false(Nt,Nsats,Nusers);
+	for i = 1:Nt
+		t = coords(i,1);
+		% common rigid offset in the inertial frame
+		p_center_true = coords_to_frame(t,coords(i,2),coords(i,3),coords(i,4));
+		p_center_spoof = coords_to_frame(t,coords_spoof(i,2),coords_spoof(i,3),coords_spoof(i,4));
+		Delta = p_center_spoof - p_center_true;
+		sats = pt_sat(1:3,:,i); % satellite positions, same frame
+		for u = 1:Nusers
+			p_u = coords_to_frame(t, ...
+				coords_grid(i,2+3*(u-1)), ...
+				coords_grid(i,3+3*(u-1)), ...
+				coords_grid(i,4+3*(u-1)));
+			p_shift = p_u + Delta;
+			for sat = 1:Nsats
+				if elevation(i,sat,u) > 0
+					d = norm(sats(:,sat)-p_shift)/c;
+					measured_delay(i,sat,u) = d - delta_t(i,u);
+					is_spoofed(i,sat,u) = true;
+				else
+					measured_delay(i,sat,u) = inf;
+				end
+			end
+		end
+	end
+end
+
+% [lat,lon,alt] at time t -> position in the inertial frame used by gps_trace
+function p = coords_to_frame(t,lat,lon,alt)
+	R_Earth = physconst('EarthRadius');
+	T_Earth = 86164;
+	theta0_Earth = 0.23*2*pi;
+	la = lat*pi/180;
+	lo = lon*pi/180;
+	u1 = [cos(la)*cos(2*pi*t/T_Earth+theta0_Earth+lo); ...
+		cos(la)*sin(2*pi*t/T_Earth+theta0_Earth+lo); ...
+		sin(la)];
+	p = (R_Earth+alt)*u1;
+end
+
 function [measured_delay,delta_t] = spoofing_sim_freespace(Pt_spoof,Gt_spoof,spoofer_coords,...
 		spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers)
 	Nt = size(coords_grid,1);
@@ -382,7 +457,7 @@ end
 function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
 		spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats)
 	if nargin < 10
-		max_spoofed_sats = 1;
+		max_spoofed_sats = inf;
 	end
 
 	Nt = size(coords_grid,1);

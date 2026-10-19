@@ -1,73 +1,82 @@
 % relative_distance_detection.m
 %
-% Classical GNSS spoofing detection based on RELATIVE DISTANCES within a
-% swarm/formation of receivers, applied to the simulator in
+% Experimental take-down of classical MULTI-RECEIVER RELATIVE-DISTANCE
+% spoofing detection, applied to the distributed-spoofing simulator in
 % GPS_spoofing_sim_20250617.m.
 %
-% Every receiver u computes its GNSS fix p_hat(u). Independently, the
-% receivers measure their true mutual distances d_ij (e.g. UWB/radio ranging
-% or a known rigid formation). Classical detectors compare the two:
+% ------------------------------------------------------------------ detectors
+% A swarm of m receivers flies in a known rigid formation. Each receiver u
+% computes its GNSS fix p_hat(u); the controller knows the commanded formation,
+% hence the nominal mutual distances d0_ij. All the classical detectors work on
+% the normalized ratios  r_ij = d_hat_ij / d0_ij :
 %
-%   D1 "collapse" (Tippenhauer et al., CCS 2011; Jansen et al., Crowd-GPS-Sec
-%      2018): a single spoofer makes all receivers compute (almost) the same
-%      position, so the GNSS distances shrink:
-%         T1 = 1 - sum(d_hat_ij)/sum(d_ij)          (alarm if T1 > gamma)
-%   D2 per-epoch distance consistency (chi-square / RSS residual test):
-%         T2 = sum((d_hat_ij - d_ij).^2)
-%   D3 worst-pair test:
-%         T3 = max|d_hat_ij - d_ij|
-%   D4 time-integrated version of D2 (moving average over Wint epochs).
+%   Jansen et al. (ACSAC 2016) -- COLLAPSE test. A single-transmitter spoofer
+%     forces all receivers onto the same position, so the GNSS distances
+%     shrink (r_ij -> 0). Alarm when f(r) < lambda, with f one of:
+%        minimal   : f = min_ij r_ij
+%        maximal   : f = max_ij r_ij
+%        majority  : f = median_ij r_ij   (>=half of the pairs below lambda)
+%     Jansen reports the (normalized) majority voting as the best choice; the
+%     three variants are all implemented here.
+%   Swaszek et al. (2013) / Borio & Gioia (2022) -- two-sided CONSISTENCY test,
+%     same family. Alarm when the distances deviate (either way) from the known
+%     formation:  T = max_ij |r_ij - 1| > lambda.
 %
-% Thresholds are set empirically from the no-spoofing scenario (H0, with the
-% same GNSS/ranging noise) to obtain a target false alarm probability Pfa;
-% the detection probability Pd is the fraction of spoofed epochs above the
-% threshold.
+% SemperFi (Sathaye et al., NDSS 2022), GNSS/INS fusion, is NOT evaluated here.
+% It is cited as blind for the SAME structural reason: a rigid translation of
+% the whole swarm preserves the SHAPE of the trajectory flown during the
+% anti-spoofing maneuver, so the IMU-vs-GPS track comparison (which only sees
+% relative motion, not absolute position) falls in the same translational
+% null-space. See the note at the bottom of this file.
 %
-% Scenarios (same trajectory/satellites/clock errors for each run):
-%   H0          : no spoofing
-%   single      : classical spoofing, 1 spoofer at the center, all satellites
-%   distr-1sat  : distributed spoofing (24 spoofers on a circle), as in the
-%                 default configuration of the simulator (1 spoofed sat/user)
-%   distr-all   : distributed spoofing, all satellites spoofed
+% --------------------------------------------------------------- attack models
+%   H0     : no spoofing                 (used only to calibrate the thresholds)
+%   rigid  : null-space attack. A coordinated distributed spoofer imposes the
+%            SAME position offset Delta on every receiver (spoofMode='rigid').
+%            The absolute position is wrong, but every r_ij ~ 1, so the whole
+%            detector family is BLIND. --> this is the result we want to show.
+%   power  : naive distributed attack with the physical ground-spoofer power
+%            model. It distorts the formation (r_ij spread), so a consistency
+%            test DOES fire. Shown as contrast: the attacker must be coordinated
+%            (rigid) to defeat the detectors.
 %
-% The formation spacing (grid_step) is swept: the formation distortion caused
-% by the distributed attack is proportional to the baselines, while the GNSS
-% noise is not, so the result depends on the ratio between the two.
+% The thresholds are calibrated on H0 (same GNSS/ranging noise) for a target
+% false alarm probability Pfa; the detection probability Pd is the fraction of
+% spoofed epochs that raise an alarm. The formation spacing (grid_step) is
+% swept, because the formation distortion of the NAIVE attack scales with the
+% baselines while the GNSS noise does not.
 
 clear
 close all
 
 % ---------------------------------------------------------------- parameters
 grid_steps = [5 10 20 50 100];   % formation spacing [m]
-grid_points = 5;                 % 5x5 receivers
+grid_points = 5;                 % 5x5 receivers (m = 25)
 Nruns = 2;                       % Monte Carlo runs (random start time)
-sigma_pr = 3;                    % pseudorange noise std [m] (uncorrelated part)
+sigma_pr = 3;                    % pseudorange noise std [m]
 sigma_range = 0.1;               % inter-receiver ranging noise std [m]
 Pfa = 0.01;                      % target false alarm probability
-Wint = 12;                       % D4 integration window [epochs] (12*5 s = 1 min)
 roc_step = 20;                   % grid_step used for the ROC figure
 
-scen(1) = struct('name','H0',         'opts',struct('Pt_spoof',0));
-scen(2) = struct('name','single',     'opts',struct('N_spoofers',1,'max_spoofed_sats',inf));
-scen(3) = struct('name','distr-1sat', 'opts',struct('N_spoofers',24,'max_spoofed_sats',1));
-scen(4) = struct('name','distr-all',  'opts',struct('N_spoofers',24,'max_spoofed_sats',inf));
-det_names = {'D1 collapse','D2 RSS','D3 max pair','D4 RSS integrated'};
+scen(1) = struct('name','H0',    'opts',struct('Pt_spoof',0));
+scen(2) = struct('name','rigid', 'opts',struct('spoofMode','rigid'));
+scen(3) = struct('name','power', 'opts',struct('spoofMode','power','max_spoofed_sats',inf));
+det_names = {'Jansen min','Jansen max','Jansen majority','Swaszek/Borio consistency'};
 
 Nscen = numel(scen);
 Ndet = numel(det_names);
 Ngs = numel(grid_steps);
 
 % ------------------------------------------------------------- simulations
-% T{g,s}: (#epochs, Ndet) test statistics; E{g,s}: relative distance error
-T = cell(Ngs,Nscen);
-E = cell(Ngs,Nscen);
+T = cell(Ngs,Nscen);   % test statistics, one row per epoch
+E = cell(Ngs,Nscen);   % median relative distance error per epoch
 for g = 1:Ngs
 	for s = 1:Nscen
 		T{g,s} = [];
 		E{g,s} = [];
 		for r = 1:Nruns
-			% same random realization (start time, clocks, noise) for all
-			% the scenarios of a given run
+			% same random realization (start time, clocks, noise) across the
+			% scenarios of a given run/spacing
 			seed = 1000*r + g;
 			rng(seed);
 			opts = scen(s).opts;
@@ -77,26 +86,33 @@ for g = 1:Ngs
 			opts.sigma_pr = sigma_pr;
 			out = GPS_spoofing_sim_20250617(opts);
 
-			[Tr,Er] = distance_tests(out,sigma_range,Wint);
+			[Tr,Er] = distance_tests(out,sigma_range);
 			T{g,s} = [T{g,s}; Tr];
 			E{g,s} = [E{g,s}; Er];
-			fprintf('grid_step %4g m | %-10s | run %d | median rel. dist. error %6.2f %%\n',...
+			fprintf('grid_step %4g m | %-6s | run %d | median rel. dist. error %6.2f %%\n',...
 				grid_steps(g),scen(s).name,r,100*median(Er));
 		end
 	end
 end
 
 % -------------------------------------------- thresholds and Pd at given Pfa
+% Collapse detectors (Jansen) raise the alarm for SMALL statistics (f < lambda);
+% the consistency detector raises it for LARGE statistics (T > lambda).
+alarm_small = [true true true false];
 Pd = zeros(Ngs,Nscen,Ndet);
 for g = 1:Ngs
 	for k = 1:Ndet
-		t0 = T{g,1}(:,k);
-		t0 = t0(~isnan(t0));
-		thr = upper_quantile(t0,Pfa);
-		for s = 1:Nscen
-			tk = T{g,s}(:,k);
-			tk = tk(~isnan(tk));
-			Pd(g,s,k) = mean(tk > thr);
+		t0 = T{g,1}(:,k); t0 = t0(~isnan(t0));
+		if alarm_small(k)
+			thr = lower_quantile(t0,Pfa);
+			for s = 1:Nscen
+				tk = T{g,s}(:,k); Pd(g,s,k) = mean(tk < thr);
+			end
+		else
+			thr = upper_quantile(t0,Pfa);
+			for s = 1:Nscen
+				tk = T{g,s}(:,k); Pd(g,s,k) = mean(tk > thr);
+			end
 		end
 	end
 end
@@ -105,22 +121,22 @@ fprintf('\nDetection probability at Pfa = %g (sigma_pr = %g m, sigma_range = %g 
 	Pfa,sigma_pr,sigma_range);
 for k = 1:Ndet
 	fprintf('\n%s\n  grid_step [m] ',det_names{k});
-	fprintf('%12s',scen.name);
+	fprintf('%10s',scen.name);
 	fprintf('\n');
 	for g = 1:Ngs
 		fprintf('  %13g ',grid_steps(g));
-		fprintf('%12.3f',Pd(g,:,k));
+		fprintf('%10.3f',Pd(g,:,k));
 		fprintf('\n');
 	end
 end
 
 fprintf('\nMedian relative distance error |d_hat-d|/d [%%]\n  grid_step [m] ');
-fprintf('%12s',scen.name);
+fprintf('%10s',scen.name);
 fprintf('\n');
 for g = 1:Ngs
 	fprintf('  %13g ',grid_steps(g));
 	for s = 1:Nscen
-		fprintf('%12.2f',100*median(E{g,s}));
+		fprintf('%10.2f',100*median(E{g,s}));
 	end
 	fprintf('\n');
 end
@@ -135,14 +151,10 @@ for k = 1:Ndet
 		hold on
 	end
 	semilogx(grid_steps,Pfa*ones(1,Ngs),'k--');
-	grid on
-	ylim([0 1.05])
-	xlabel('formation spacing [m]')
-	ylabel('P_D')
+	grid on; ylim([0 1.05])
+	xlabel('formation spacing [m]'); ylabel('P_D')
 	title(sprintf('%s (P_{FA}=%g)',det_names{k},Pfa))
-	if k==1
-		legend({scen(2:end).name,'P_{FA}'},'Location','best')
-	end
+	if k==1, legend({scen(2:end).name,'P_{FA}'},'Location','best'); end
 end
 
 g = find(grid_steps==roc_step,1);
@@ -150,50 +162,43 @@ if ~isempty(g)
 	figure(2)
 	for k = 1:Ndet
 		subplot(2,2,k)
-		t0 = T{g,1}(:,k);
-		t0 = sort(t0(~isnan(t0)));
+		t0 = sort(T{g,1}(~isnan(T{g,1}(:,k)),k));
+		thr_c = [-inf;t0;inf];
 		for s = 2:Nscen
-			tk = T{g,s}(:,k);
-			tk = tk(~isnan(tk));
-			pfa_c = zeros(numel(t0)+1,1);
-			pd_c = zeros(numel(t0)+1,1);
-			thr_c = [t0;inf];
+			tk = T{g,s}(:,k); tk = tk(~isnan(tk));
+			pfa_c = zeros(numel(thr_c),1); pd_c = pfa_c;
 			for i = 1:numel(thr_c)
-				pfa_c(i) = mean(t0 >= thr_c(i));
-				pd_c(i) = mean(tk >= thr_c(i));
+				if alarm_small(k)
+					pfa_c(i) = mean(t0 < thr_c(i)); pd_c(i) = mean(tk < thr_c(i));
+				else
+					pfa_c(i) = mean(t0 > thr_c(i)); pd_c(i) = mean(tk > thr_c(i));
+				end
 			end
-			plot(pfa_c,pd_c,'Color',colors(s,:),'LineWidth',1.5);
-			hold on
+			plot(pfa_c,pd_c,'Color',colors(s,:),'LineWidth',1.5); hold on
 		end
-		plot([0 1],[0 1],'k--')
-		grid on
-		axis square
-		xlabel('P_{FA}')
-		ylabel('P_D')
+		plot([0 1],[0 1],'k--'); grid on; axis square
+		xlabel('P_{FA}'); ylabel('P_D')
 		title(sprintf('ROC %s, spacing %g m',det_names{k},roc_step))
-		if k==1
-			legend({scen(2:end).name,'chance'},'Location','southeast')
-		end
+		if k==1, legend({scen(2:end).name,'chance'},'Location','southeast'); end
 	end
 end
 
 figure(3)
-for s = 1:Nscen
+for s = 2:Nscen
 	semilogx(grid_steps,cellfun(@(e) 100*median(e),E(:,s)),'-o',...
-		'Color',colors(s,:),'LineWidth',1.5);
-	hold on
+		'Color',colors(s,:),'LineWidth',1.5); hold on
 end
 grid on
-xlabel('formation spacing [m]')
-ylabel('median |d_{hat}-d|/d [%]')
-legend({scen.name},'Location','best')
+xlabel('formation spacing [m]'); ylabel('median |d_{hat}-d|/d [%]')
+legend({scen(2:end).name},'Location','best')
 title('Distortion of the relative distances')
 
 
 % ======================================================== local functions
 
-% test statistics for every epoch of one simulation
-function [Tr,Er] = distance_tests(out,sigma_range,Wint)
+% Jansen collapse variants + Swaszek/Borio consistency, per epoch.
+% Columns of Tr: [min(r), max(r), median(r), max|r-1|].
+function [Tr,Er] = distance_tests(out,sigma_range)
 	Nt = size(out.coords_est,1);
 	Nusers = size(out.coords_est,2)/3;
 	[I,J] = find(triu(true(Nusers),1));
@@ -202,25 +207,21 @@ function [Tr,Er] = distance_tests(out,sigma_range,Wint)
 	for t = 1:Nt
 		p_true = coords_to_ecef(out.coords_grid(t,2:end));
 		p_est = coords_to_ecef(out.coords_est(t,:));
-		d_true = sqrt(sum((p_true(I,:)-p_true(J,:)).^2,2));
-		d_meas = d_true + sigma_range*randn(size(d_true)); % ranging
-		d_gnss = sqrt(sum((p_est(I,:)-p_est(J,:)).^2,2));
-		res = d_gnss - d_meas;
-		Tr(t,1) = 1 - sum(d_gnss)/sum(d_meas);
-		Tr(t,2) = sum(res.^2);
-		Tr(t,3) = max(abs(res));
-		Er(t) = median(abs(d_gnss-d_true)./d_true);
-	end
-	% D4: moving average of D2 over the last Wint epochs
-	Tr(:,4) = NaN;
-	for t = Wint:Nt
-		Tr(t,4) = mean(Tr(t-Wint+1:t,2));
+		d0_clean = sqrt(sum((p_true(I,:)-p_true(J,:)).^2,2));  % known formation
+		d0 = d0_clean + sigma_range*randn(size(d0_clean));     % ranging noise
+		d_gnss = sqrt(sum((p_est(I,:)-p_est(J,:)).^2,2));      % GNSS distances
+		r = d_gnss ./ d0;                                      % normalized ratio
+		Tr(t,1) = min(r);
+		Tr(t,2) = max(r);
+		Tr(t,3) = median(r);
+		Tr(t,4) = max(abs(r-1));
+		Er(t) = median(abs(d_gnss-d0_clean)./d0_clean);
 	end
 end
 
-% [lat1,lon1,alt1,lat2,...] -> (#users,3) Cartesian positions. The same
-% spherical Earth model of the simulator is used; the Earth rotation term is
-% common to all the receivers and does not change their distances.
+% [lat1,lon1,alt1,lat2,...] -> (#users,3) Cartesian positions (spherical Earth,
+% same model as the simulator; the common Earth-rotation term does not change
+% the mutual distances).
 function p = coords_to_ecef(c)
 	R_Earth = physconst('EarthRadius');
 	lat = c(1:3:end).'*pi/180;
@@ -229,9 +230,31 @@ function p = coords_to_ecef(c)
 	p = (R_Earth+alt).*[cos(lat).*cos(lon), cos(lat).*sin(lon), sin(lat)];
 end
 
-% threshold such that a fraction Pfa of x is above it (no toolbox needed)
+% threshold with a fraction Pfa of x ABOVE it (consistency test)
 function thr = upper_quantile(x,Pfa)
-	x = sort(x(:));
-	n = numel(x);
+	x = sort(x(:)); n = numel(x);
 	thr = x(min(n,max(1,ceil((1-Pfa)*n))));
 end
+
+% threshold with a fraction Pfa of x BELOW it (collapse test)
+function thr = lower_quantile(x,Pfa)
+	x = sort(x(:)); n = numel(x);
+	thr = x(min(n,max(1,floor(Pfa*n)+1)));
+end
+
+% ---------------------------------------------------------------------------
+% NOTE on SemperFi (GNSS/INS fusion, Sathaye et al., NDSS 2022) -- not tested.
+%
+% SemperFi commands a pseudorandom maneuver and compares the trajectory tracked
+% by the IMU (dead-reckoning) against the one reported by GPS, raising an alarm
+% when the averaged Euclidean deviation exceeds ~5 m. It detects attacks that
+% make the GPS track DISAGREE with the inertial track in shape/relative motion.
+%
+% The rigid-translation attack adds the SAME constant offset Delta to every GPS
+% fix at every epoch. The GPS-derived displacement between consecutive samples,
+% (p+Delta)[t+1] - (p+Delta)[t] = p[t+1]-p[t], is therefore identical to the
+% inertial one: the maneuver shape is preserved and the IMU-vs-GPS deviation
+% stays ~0. The attack lives in the same translational null-space as the
+% relative-distance detectors, so SemperFi is cited as blind for the same
+% structural reason, without a separate experiment.
+% ---------------------------------------------------------------------------
