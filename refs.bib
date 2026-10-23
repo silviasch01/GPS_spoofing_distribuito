@@ -55,9 +55,61 @@
   address   = {Nashville, TN, USA}
 }
 
-% NOTE: verify this entry. The confirmed Borio & Gioia multi-correlator paper
-% is the 2016 "sum-of-squares" one below (single receiver). If you meant a
-% specific 2022 multi-receiver distance paper, replace the key/fields.
+@inproceedings{swaszek2017platoon,
+  author    = {Swaszek, Peter F. and Hartnett, Richard J. and Seals, Kelly C.},
+  title     = {{GNSS} Spoof Detection Using Independent Range Information},
+  booktitle = {Proceedings of the 30th International Technical Meeting of the Satellite Division of The Institute of Navigation (ION GNSS+ 2017)},
+  pages     = {2838--2853},
+  year      = {2017},
+  address   = {Portland, OR, USA},
+  doi       = {10.33012/2017.15338},
+  note      = {Title field unverified: taken from secondary sources}
+}
+
+@article{stenberg2022multiple,
+  author  = {Stenberg, Niklas and Axell, Erik and Rantakokko, Jouni and Hendeby, Gustaf},
+  title   = {Results on {GNSS} Spoofing Mitigation Using Multiple Receivers},
+  journal = {NAVIGATION: Journal of the Institute of Navigation},
+  volume  = {69},
+  number  = {1},
+  pages   = {navi.510},
+  year    = {2022},
+  doi     = {10.33012/navi.510}
+}
+
+@article{kalantari2020rigidbody,
+  author  = {Kalantari, Ashkan and Larsson, Erik G.},
+  title   = {Statistical Test for {GNSS} Spoofing Attack Detection by Using Multiple Receivers on a Rigid Body},
+  journal = {EURASIP Journal on Advances in Signal Processing},
+  volume  = {2020},
+  number  = {5},
+  year    = {2020},
+  doi     = {10.1186/s13634-020-0663-z},
+  note    = {Article number unverified (5 or 8)}
+}
+
+@inproceedings{mykytyn2023uwb,
+  author    = {Mykytyn, Pavlo and Brzozowski, Marcin and Dyka, Zoya and Langendoerfer, Peter},
+  title     = {{GPS}-Spoofing Attack Detection Mechanism for {UAV} Swarms},
+  booktitle = {2023 12th Mediterranean Conference on Embedded Computing (MECO)},
+  year      = {2023},
+  doi       = {10.1109/MECO58584.2023.10154998},
+  note      = {arXiv:2301.12766}
+}
+
+@article{bi2024sdp,
+  author  = {Bi, Haoyu and Li, Xiaofan and Hu, Jun and Ni, Wei and Wang, Yang and Wang, Xin},
+  title   = {Spoofing Detection in {UAV} Swarms via Semidefinite-Programming Localization Feasibility},
+  journal = {IEEE Transactions on Information Forensics and Security},
+  volume  = {19},
+  year    = {2024},
+  note    = {arXiv:2312.03787; exact title, pages and DOI unverified}
+}
+
+% The Borio & Gioia work actually in the literature: a two-receiver
+% carrier-phase (double-difference) sum-of-squares detector. There is NO
+% "Borio-Gioia 2022" multi-receiver distance paper (verified on Crossref,
+% IEEE, ION, JRC, MDPI).
 @article{borio2016sumofsquares,
   author  = {Borio, Daniele and Gioia, Ciro},
   title   = {A Sum-of-Squares Approach to {GNSS} Spoofing Detection},
@@ -79,7 +131,109 @@
   title     = {{SemperFi}: Anti-spoofing {GPS} Receiver for {UAVs}},
   booktitle = {Proceedings of the Network and Distributed System Security Symposium (NDSS)},
   year      = {2022},
-  doi       = {10.14722/ndss.2022.23184}
+  doi       = {10.14722/ndss.2022.23184},
+  note      = {DOI unverified; preprint arXiv:2105.01860}
+}
+
+@article{tanil2018insmonitor,
+  author  = {Tanil, Cagatay and Khanafseh, Samer and Joerger, Mathieu and Pervan, Boris},
+  title   = {An {INS} Monitor to Detect {GNSS} Spoofers Capable of Tracking Vehicle Position},
+  journal = {IEEE Transactions on Aerospace and Electronic Systems},
+  volume  = {54},
+  number  = {1},
+  pages   = {131--143},
+  year    = {2018},
+  doi     = {10.1109/TAES.2017.2739924}
+}
+
+@article{kujur2024insmonitor,
+  author  = {Kujur, Birendra and Khanafseh, Samer and Pervan, Boris},
+  title   = {Detecting {GNSS} Spoofing Using Temporal Behavior of Innovation Sequences},
+  journal = {NAVIGATION: Journal of the Institute of Navigation},
+  volume  = {71},
+  number  = {1},
+  pages   = {navi.629},
+  year    = {2024},
+  doi     = {10.33012/navi.629},
+  note    = {Title field unverified}
+}
+
+% ---------------------------------------------------------------------------
+% Coordinated / formation-preserving (rigid-translation) spoofing attacks:
+% the works that already state or demonstrate the null-space limit
+% ---------------------------------------------------------------------------
+
+@inproceedings{tibaldo2025gnsswasp,
+  author    = {Tibaldo, Francesco and Sathaye, Harshad and Camurati, Giovanni and {\v{C}}apkun, Srdjan},
+  title     = {{GNSS-WASP}: Wide Area Spoofing of {GNSS} Receivers Preserving Relative Distances},
+  booktitle = {Proceedings of the 34th USENIX Security Symposium},
+  year      = {2025},
+  publisher = {USENIX Association},
+  note      = {Exact title and page numbers unverified}
+}
+
+@misc{park2026rigidshift,
+  author        = {Park, Jiwon and Yoo, Seungwon},
+  title         = {{RigidShift}: Common-Mode {GNSS} Spoofing of Swarms Is Unobservable from Relative Measurements},
+  year          = {2026},
+  eprint        = {2608.06885},
+  archivePrefix = {arXiv},
+  note          = {Preprint, not peer-reviewed; author names and title unverified}
+}
+
+@article{ceccato2020spatial,
+  author  = {Ceccato, Marco and Formaggio, Francesco and Tomasin, Stefano},
+  title   = {Spatial {GNSS} Spoofing Against Drone Swarms With Multiple Antennas and {W}iener Filter},
+  journal = {IEEE Transactions on Signal Processing},
+  volume  = {68},
+  pages   = {5782--5794},
+  year    = {2020},
+  doi     = {10.1109/TSP.2020.3028752}
+}
+
+@inproceedings{chen2024swarmspoofing,
+  author    = {Chen, Yuan and Dong, Xiaoyu and Duan, Ran},
+  title     = {{GPS} Swarm Spoofing: Theoretical Analysis and Practical Solutions},
+  booktitle = {2024 IEEE 21st Consumer Communications \& Networking Conference (CCNC)},
+  pages     = {127--134},
+  year      = {2024},
+  doi       = {10.1109/CCNC51664.2024.10454872},
+  note      = {Title field unverified}
+}
+
+@article{aspnes2006localization,
+  author  = {Aspnes, James and Eren, Tolga and Goldenberg, David K. and Morse, A. Stephen and Whiteley, Walter and Yang, Yang Richard and Anderson, Brian D. O. and Belhumeur, Peter N.},
+  title   = {A Theory of Network Localization},
+  journal = {IEEE Transactions on Mobile Computing},
+  volume  = {5},
+  number  = {12},
+  pages   = {1663--1678},
+  year    = {2006},
+  doi     = {10.1109/TMC.2006.174}
+}
+
+% ---------------------------------------------------------------------------
+% Surveys supplied by the user (compared in the report)
+% ---------------------------------------------------------------------------
+
+@article{altaweel2023fanets,
+  author  = {Altaweel, Ala and Mukkath, Hena and Kamel, Ibrahim},
+  title   = {{GPS} Spoofing Attacks in {FANETs}: A Systematic Literature Review},
+  journal = {IEEE Access},
+  volume  = {11},
+  pages   = {55233--55280},
+  year    = {2023},
+  doi     = {10.1109/ACCESS.2023.3281731}
+}
+
+@inproceedings{sebastian2026survey,
+  author    = {Sebastian, Anu and Manjith, B. C.},
+  title     = {A Comprehensive Survey of {GPS} Spoofing Attack Detection Techniques in {UAV} Systems},
+  booktitle = {2026 IEEE International Conference on Intelligent Technologies, Systems and Innovation Frontiers (ICITSIF)},
+  pages     = {1041--1046},
+  year      = {2026},
+  doi       = {10.1109/ICITSIF69060.2026.11609121},
+  note      = {Author first names and conference expansion unverified}
 }
 
 % ---------------------------------------------------------------------------

@@ -18,9 +18,16 @@
 %        majority  : f = median_ij r_ij   (>=half of the pairs below lambda)
 %     Jansen reports the (normalized) majority voting as the best choice; the
 %     three variants are all implemented here.
-%   Swaszek et al. (2013) / Borio & Gioia (2022) -- two-sided CONSISTENCY test,
-%     same family. Alarm when the distances deviate (either way) from the known
-%     formation:  T = max_ij |r_ij - 1| > lambda.
+%   Formation CONSISTENCY test (two-sided), same family. Alarm when the
+%     distances deviate (either way) from the known formation:
+%        T = max_ij |r_ij - 1| > lambda.
+%     This is the "worst pair" form of the GNSS-vs-ranging consistency check
+%     used for UAV swarms by Mykytyn et al. (MECO 2023, |d_GPS - d_UWB| > thr)
+%     and, in the measurement domain, by Stenberg et al. (NAVIGATION 2022,
+%     GLRT on double differences) and Swaszek, Hartnett & Seals (ION GNSS+
+%     2017, GLRT on GNSS fixes + inter-vehicle ranges). It is NOT the
+%     Borio & Gioia sum-of-squares detector (TAES 2016), which is a two-receiver
+%     carrier-phase test.
 %
 % SemperFi (Sathaye et al., NDSS 2022), GNSS/INS fusion, is NOT evaluated here.
 % It is cited as blind for the SAME structural reason: a rigid translation of
@@ -61,7 +68,7 @@ roc_step = 20;                   % grid_step used for the ROC figure
 scen(1) = struct('name','H0',    'opts',struct('Pt_spoof',0));
 scen(2) = struct('name','rigid', 'opts',struct('spoofMode','rigid'));
 scen(3) = struct('name','power', 'opts',struct('spoofMode','power','max_spoofed_sats',inf));
-det_names = {'Jansen min','Jansen max','Jansen majority','Swaszek/Borio consistency'};
+det_names = {'Jansen min','Jansen max','Jansen majority','Formation consistency (Stenberg/Mykytyn)'};
 
 Nscen = numel(scen);
 Ndet = numel(det_names);
@@ -196,7 +203,7 @@ title('Distortion of the relative distances')
 
 % ======================================================== local functions
 
-% Jansen collapse variants + Swaszek/Borio consistency, per epoch.
+% Jansen collapse variants + formation consistency test, per epoch.
 % Columns of Tr: [min(r), max(r), median(r), max|r-1|].
 function [Tr,Er] = distance_tests(out,sigma_range)
 	Nt = size(out.coords_est,1);
