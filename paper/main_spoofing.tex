@@ -1,0 +1,650 @@
+% =========================================================================
+% Formation-Preserving Distributed GNSS Spoofing of UAV Swarms
+% -------------------------------------------------------------------------
+% Compile on Overleaf with pdfLaTeX + BibTeX.
+% Figures are in figs/ ; bibliography in biblio.bib (style: IEEEtran).
+% Sections I (Introduction) and II (Related Work) are DRAFTS left for the
+% author to rewrite -- marked with  %% TODO (autore).
+% =========================================================================
+\documentclass[conference]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figs/}}
+
+\newtheorem{proposition}{Proposition}
+
+% handy macros
+\newcommand{\ptrue}[1]{\mathbf{p}_{#1}}
+\newcommand{\pest}[1]{\hat{\mathbf{p}}_{#1}}
+\newcommand{\PD}{P_{\mathrm{D}}}
+\newcommand{\PFA}{P_{\mathrm{FA}}}
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+
+\begin{document}
+
+\title{Formation-Preserving Distributed GNSS Spoofing\\
+Defeats Relative-Distance Detection in UAV Swarms}
+
+\author{%
+\IEEEauthorblockN{Silvia Schilleci}
+\IEEEauthorblockA{\todo{affiliazione, email}}%
+% \and \IEEEauthorblockN{Co-author} \IEEEauthorblockA{...}
+}
+
+\maketitle
+
+% =========================================================================
+\begin{abstract}
+Multi-receiver spoofing detection is widely regarded as one of the most
+robust countermeasures against civilian GNSS spoofing: receivers deployed
+in a known formation compare the mutual distances implied by their GNSS
+fixes with the known (or independently measured) formation geometry, and a
+single-transmitter spoofer, which collapses all victims onto the same
+position, is detected with near-certain probability. In this paper we
+evaluate this detector family against a \emph{distributed} spoofer:
+multiple ground transmitters deployed around the target area, each
+impersonating the satellite closest to it in azimuth. We develop a
+physical simulation model of a 25-UAV swarm overflown by 24 ground
+spoofers, including an elevation-dependent ground-to-UAV channel, and we
+implement the collapse test of Jansen et al.\ (ACSAC~2016) in its three
+variants together with a two-sided formation-consistency test
+representative of GNSS-vs-ranging checks. Our results quantify a
+\emph{coordination gap}: the uncoordinated distributed attack distorts the
+swarm formation by 42--56\,\% of the baseline and is detected with
+probability up to $0.98$ at a $10^{-2}$ false-alarm rate, whereas its
+coordinated counterpart---which imposes a common rigid translation on
+every receiver---preserves all pairwise distances exactly and reduces
+every detector in the family to chance level
+($\PD \approx \PFA$ at every formation spacing from 5 to 100\,m, ROC on
+the diagonal). The blindness is structural: any statistic computed from
+relative quantities only is invariant under a common translation. We
+position this result with respect to recent formal and experimental
+statements of the same limit, delimit its scope (direction-of-arrival and
+absolute-reference detectors are \emph{not} blind to our ground
+configuration), and release the full MATLAB simulator.
+\end{abstract}
+
+\begin{IEEEkeywords}
+GNSS spoofing, UAV swarms, spoofing detection, multi-receiver, distributed
+attack, relative distances.
+\end{IEEEkeywords}
+
+% =========================================================================
+\section{Introduction}
+\label{sec:intro}
+%% TODO (autore): riscrivere/estendere l'introduzione. Questa e' una bozza
+%% minima per rendere il documento compilabile e coerente.
+
+Civilian GNSS signals are unauthenticated and can be forged by
+commodity software-defined radios~\cite{humphreys2008assessing}. Among
+the proposed countermeasures, \emph{multi-receiver} (or multi-agent)
+detection stands out for its simplicity: since a single-antenna spoofer
+forces every victim in its coverage area to compute the same position
+fix~\cite{tippenhauer2011requirements}, a group of receivers that knows
+its own formation can detect the attack by checking that the mutual
+distances implied by the GNSS fixes remain consistent with the formation
+geometry~\cite{jansen2016multireceiver,swaszek2013multicots}. The same
+principle underpins recent proposals for UAV swarms, which compare
+GNSS-derived inter-drone distances against independent ultra-wideband
+(UWB) ranging~\cite{mykytyn2023uwb,bi2024sdp}.
+
+This paper asks whether the guarantee survives a \emph{distributed}
+attacker, i.e.\ several coordinated ground transmitters surrounding the
+target area. Our contributions are:
+(i) a physical simulation model of a distributed ground spoofer attacking
+a moving UAV swarm, including per-satellite spoofer assignment and an
+elevation-dependent ground-to-UAV channel~\cite{alhourani2018cellular};
+(ii) a faithful implementation of the collapse detector of Jansen et
+al.~\cite{jansen2016multireceiver} and of a two-sided formation
+consistency test~\cite{stenberg2022multiple,mykytyn2023uwb};
+(iii) a quantitative evaluation showing that the \emph{uncoordinated}
+distributed attack is detectable, while its \emph{coordinated}
+(rigid-translation) counterpart drives every detector of the family to
+chance level; and
+(iv) an honest delimitation of the result with respect to
+direction-of-arrival and absolute-reference defenses.
+
+\todo{aggiungere motivazione applicativa, struttura del paper}
+
+% =========================================================================
+\section{Related Work}
+\label{sec:related}
+%% TODO (autore): riscrivere. Bozza strutturata con le citazioni chiave.
+
+\subsubsection*{Multi-receiver position-domain detection}
+Tippenhauer et al.~\cite{tippenhauer2011requirements} formalized the GPS
+group-spoofing problem and proposed checking that the victims' computed
+positions preserve their physical formation; Jansen et
+al.~\cite{jansen2016multireceiver} turned the check into a statistical
+test on pairwise distances with Rician/Rayleigh error models and
+spatially correlated noise, and Swaszek and
+Hartnett~\cite{swaszek2013multicots} derived Neyman--Pearson optimal
+variants for COTS receivers. Crowd-GPS-Sec~\cite{jansen2018crowdgpssec}
+applies the same collapse principle to crowdsourced air-traffic
+receivers.
+
+\subsubsection*{Measurement-domain and swarm variants}
+Stenberg et al.~\cite{stenberg2022multiple} test double differences of
+pseudorange and carrier phase across receivers ($\chi^2$/GLRT), Kalantari
+and Larsson~\cite{kalantari2020rigidbody} derive a GLRT for receivers on
+a rigid body with unknown pose explicitly against multiple spoofers, and
+Borio and Gioia~\cite{borio2016sumofsquares} detect the single common
+direction of arrival with a two-receiver sum-of-squares statistic. For
+UAV swarms, Mykytyn et al.~\cite{mykytyn2023uwb} compare GNSS distances
+with UWB two-way ranging, and Bi et al.~\cite{bi2024sdp} cast detection
+as a semidefinite localization-feasibility problem. GNSS/INS fusion
+defenses such as SemperFi~\cite{sathaye2022semperfi} and tightly coupled
+INS innovation monitors~\cite{tanil2018insmonitor,kujur2024insmonitor}
+compare GNSS tracks with inertial dead reckoning.
+
+\subsubsection*{Coordinated spoofing attacks}
+Result~7 of~\cite{tippenhauer2011requirements} proves that a
+formation-preserving group spoofing placement always exists (one
+transmitter per impersonated satellite); Jansen et
+al.~\cite{jansen2016multireceiver} attempted a distance-preserving
+four-USRP attack and failed beyond one receiver. Ceccato et
+al.~\cite{ceccato2020spatial} designed a multi-antenna ground spoofer
+with Wiener precoding that displaces a swarm without disrupting its
+formation; Chen et al.~\cite{chen2024swarmspoofing} analyze
+formation-preserving spoofing of small swarms;
+GNSS-WASP~\cite{tibaldo2025gnsswasp} demonstrated in hardware a
+transmitter constellation that spoofs receivers over a wide area while
+preserving their relative distances, explicitly bypassing
+multi-receiver~\cite{jansen2016multireceiver} and
+sensor-fusion~\cite{sathaye2022semperfi} countermeasures; and Park and
+Yoo~\cite{park2026rigidshift} state the translation-invariance of
+relative-only detectors as a formal proposition, rooted in the gauge
+freedom of network localization~\cite{aspnes2006localization}. Surveys
+of the field include~\cite{psiaki2016gnss,altaweel2023fanets,%
+sebastian2026survey}.
+
+\todo{posizionamento rispetto a GNSS-WASP e Park--Yoo: il nostro
+contributo e' il modello fisico a terra e la quantificazione del
+coordination gap, non l'enunciato del limite}
+
+% =========================================================================
+\section{System Model}
+\label{sec:system}
+
+\subsection{Swarm, constellation, and measurement model}
+We consider a swarm of $m$ UAVs flying in a rigid square grid of
+$\sqrt{m}\times\sqrt{m}$ elements with spacing $g$ (the \emph{formation
+spacing}), following a way-point trajectory at altitudes between 100 and
+700\,m; positions are sampled every $T_s=5$\,s. The GNSS constellation is
+modeled as $N_{\mathrm{sat}}=24$ satellites on 6 circular orbital planes
+(inclination $55^\circ$, altitude 20\,200\,km) over a rotating spherical
+Earth. For UAV $u$ at position $\ptrue{u}(t)$ and satellite $s$ at
+position $\mathbf{s}_s(t)$ (visible when its elevation is positive), the
+nominal propagation delay is
+$\tau_{u,s}(t)=\lVert\mathbf{s}_s(t)-\ptrue{u}(t)\rVert/c$. Each receiver
+has a clock bias $\delta t_u\sim\mathcal{U}(-1,1)$\,s, constant over the
+run, and each pseudorange carries additive white Gaussian noise of
+standard deviation $\sigma_{\mathrm{pr}}=3$\,m.
+
+Each UAV computes its position fix $\pest{u}$ independently by iterated
+linearized least squares (Gauss--Newton) over the four unknowns
+$(x,y,z,\delta t)$: at iteration $k$, with predicted ranges
+$R_s=\lVert\mathbf{s}_s-\hat{\mathbf{x}}^{(k)}\rVert$ and pseudoranges
+$\rho_s=c\,(\tilde{\tau}_{u,s}-\widehat{\delta t}^{(k)})$,
+\begin{equation}
+\mathbf{G}\,\Delta =\boldsymbol{\rho}-\mathbf{R},\qquad
+\mathbf{G}_{s,:}=\Bigl[\tfrac{(\hat{\mathbf{x}}-\mathbf{s}_s)^{\!\top}}{R_s},\; c\Bigr],
+\label{eq:ls}
+\end{equation}
+solved in the least-squares sense for five iterations, where
+$\tilde{\tau}_{u,s}$ is the \emph{measured} delay (authentic or spoofed).
+
+In addition to GNSS, the UAVs measure their true mutual distances with an
+independent on-board ranging sensor (e.g.\ UWB two-way
+ranging~\cite{mykytyn2023uwb}):
+\begin{equation}
+d^{\mathrm{meas}}_{ij}(t) = \lVert\ptrue{i}(t)-\ptrue{j}(t)\rVert
+ + \varepsilon_{ij}(t),\quad
+\varepsilon_{ij}\sim\mathcal{N}(0,\sigma^2_{\mathrm{rng}}),
+\label{eq:uwb}
+\end{equation}
+with $\sigma_{\mathrm{rng}}=0.1$\,m. This is the most favorable setting
+for the defender: the formation geometry is known essentially without
+error.
+
+\subsection{Ground-to-UAV channel}
+Spoofing signals travel over a ground-to-air link. We adopt the
+suburban cellular-to-UAV path-loss model of Al-Hourani and
+Gomez~\cite{alhourani2018cellular}: for a ground transmitter at distance
+$d$ and depression/elevation angle $\theta$ (in degrees) as seen from the
+UAV,
+\begin{equation}
+\mathrm{PL}(d,\theta) = 10\,\alpha\log_{10}(d)
+ + A\,(\theta-\theta_0)\,e^{-\frac{\theta-\theta_0}{B}} + \eta_0
+ \quad [\mathrm{dB}],
+\label{eq:alhourani}
+\end{equation}
+with $\alpha=3.04$, $A=-23.29$, $B=4.14$, $\theta_0=-3.61^\circ$,
+$\eta_0=20.70$\,dB (shadowing disabled for repeatability). Authentic
+signals follow free-space loss from satellite transmit power
+$P_t^{\mathrm{sat}}=25$\,W with antenna gains
+$G_t^{\mathrm{sat}}=13.5$\,dB and $G_r=5$\,dB.
+
+% =========================================================================
+\section{Distributed Spoofing Attack}
+\label{sec:attack}
+
+The attacker's goal is to displace the whole swarm's perceived position
+onto a target trajectory (a fixed decoy point in our runs, roughly 5.7~km
+from the flight path), while the swarm believes it is following its
+mission plan.
+
+\subsection{Transmitter geometry and satellite assignment}
+$N_{\mathrm{sp}}=24$ ground transmitters are placed on a circle of radius
+$R_{\mathrm{sp}}=2.5$\,km centered on the target area
+(Fig.~\ref{fig:scenario}), each radiating $P_t^{\mathrm{sp}}=1$\,mW with
+$G_t^{\mathrm{sp}}=1$\,dB. Following the geometric feasibility argument
+of~\cite[Result~7]{tippenhauer2011requirements}---a formation-preserving
+group spoofing placement uses one transmitter per impersonated
+satellite---each visible satellite $s$ is assigned to the spoofer whose
+azimuth, as seen from the area center, is closest to the satellite's
+azimuth:
+\begin{equation}
+\mathrm{sp}(s,t)=\arg\min_{k}\;
+\bigl|\angle_{2\pi}\bigl(\phi_s(t)-\phi_k\bigr)\bigr|,
+\label{eq:assign}
+\end{equation}
+where $\phi_s$ is the satellite azimuth and $\phi_k$ the azimuth of
+spoofer $k$.
+
+\subsection{Uncoordinated attack (\textsf{power})}
+In the baseline attack the spoofers transmit a common signal set, with no
+per-victim adaptation. For each UAV $u$ and satellite $s$, the receiver
+locks onto the spoofer whenever the received spoofing power exceeds the
+authentic one, $P_r^{\mathrm{sp}}>P_r^{\mathrm{sat}}$, with
+$P_r^{\mathrm{sp}}$ given by~\eqref{eq:alhourani}. The measured delay is
+then
+\begin{equation}
+\tilde{\tau}_{u,s} \;=\; \tau^{\mathrm{dec}}_{s}
+ \;-\;\delta t_u\;-\;\frac{R_{\mathrm{sp}}-d_{u,\mathrm{sp}(s)}}{c},
+\label{eq:power}
+\end{equation}
+where $\tau^{\mathrm{dec}}_{s}$ is the delay that satellite $s$ would
+exhibit at the decoy position and $d_{u,\mathrm{sp}(s)}$ is the true
+spoofer-to-UAV distance. The last term is the physical propagation from
+the assigned spoofer: it varies across the swarm along the
+\emph{horizontal} direction towards the spoofer, whereas an authentic
+delay varies along the inclined line of sight to the satellite. This
+mismatch makes the induced position offset \emph{position-dependent}, so
+the swarm is displaced but also \emph{deformed}.
+
+\subsection{Coordinated attack (\textsf{rigid})}
+The coordinated attacker knows the swarm geometry (or equivalently,
+adapts per victim) and pre-compensates the per-UAV terms so that every
+receiver measures delays consistent with its \emph{true} position shifted
+by a common vector:
+\begin{equation}
+\tilde{\tau}_{u,s} \;=\;
+\frac{\lVert \mathbf{s}_s-(\ptrue{u}+\boldsymbol{\Delta})\rVert}{c}
+\;-\;\delta t_u ,
+\qquad
+\boldsymbol{\Delta}(t)=\mathbf{p}^{\mathrm{dec}}(t)-\mathbf{p}^{\mathrm{ctr}}(t),
+\label{eq:rigid}
+\end{equation}
+where $\mathbf{p}^{\mathrm{ctr}}$ and $\mathbf{p}^{\mathrm{dec}}$ are the
+true and decoy trajectories of the swarm center. Solving~\eqref{eq:ls}
+then yields $\pest{u}=\ptrue{u}+\boldsymbol{\Delta}+\mathbf{n}_u$: the
+whole swarm is rigidly translated. The transmitters are \emph{not}
+moved; \eqref{eq:rigid} models the delays that the coordinated ground
+array must synthesize, i.e.\ the ideal end state of the attack
+of~\cite{tippenhauer2011requirements,tibaldo2025gnsswasp}. The gap
+between \eqref{eq:power} and \eqref{eq:rigid} is precisely the
+coordination effort required of the attacker, and Section~\ref{sec:results}
+quantifies its observable consequence.
+
+\subsection{Why rigid translations are undetectable}
+\label{sec:nullspace}
+
+\begin{proposition}[Translation invariance]
+\label{prop:null}
+Let $\pest{u}=\ptrue{u}+\boldsymbol{\Delta}+\mathbf{n}_u$,
+$u=1,\dots,m$, with $\boldsymbol{\Delta}$ common to all receivers, and
+let the detector statistic be any measurable function
+\begin{equation}
+T=f\bigl(\{\pest{i}-\pest{j}\}_{i<j},\,
+         \{d^{\mathrm{meas}}_{ij}\}_{i<j}\bigr).
+\end{equation}
+Then $T$ has the same distribution under $H_0$
+($\boldsymbol{\Delta}=\mathbf{0}$) and under the rigid attack
+($\boldsymbol{\Delta}\neq\mathbf{0}$); consequently
+$\PD=\PFA$ for every threshold.
+\end{proposition}
+
+\begin{IEEEproof}
+$\pest{i}-\pest{j}=(\ptrue{i}-\ptrue{j})+(\mathbf{n}_i-\mathbf{n}_j)$
+does not depend on $\boldsymbol{\Delta}$, and
+$d^{\mathrm{meas}}_{ij}$ is measured independently of GNSS. Hence the
+joint distribution of the arguments of $f$, and therefore of $T$, is
+identical under the two hypotheses.
+\end{IEEEproof}
+
+If the statistic uses only distances (not vectors), invariance extends to
+the whole Euclidean group (common rotations and reflections). The
+proposition restates, in the spoofing context, the gauge freedom of
+anchor-free network localization~\cite{aspnes2006localization}; it
+appears implicitly in~\cite[Result~7]{tippenhauer2011requirements} and
+explicitly in~\cite{park2026rigidshift}, and is realized in hardware
+by~\cite{tibaldo2025gnsswasp}. Our contribution is not the statement but
+its quantitative confrontation with a \emph{physical ground-based}
+attacker model.
+
+% =========================================================================
+\section{Relative-Distance Detection Methods}
+\label{sec:detection}
+
+All detectors operate on the normalized distance ratios
+\begin{equation}
+r_{ij}(t)=\frac{\hat{d}_{ij}(t)}{d^{\mathrm{meas}}_{ij}(t)},
+\qquad
+\hat{d}_{ij}=\lVert\pest{i}-\pest{j}\rVert ,
+\label{eq:ratio}
+\end{equation}
+computed over all $\binom{m}{2}=300$ pairs at every epoch; under
+authentic conditions $r_{ij}\approx 1$.
+
+\subsection{Collapse tests (Jansen et al.)}
+The ACSAC~2016 detector~\cite{jansen2016multireceiver} declares spoofing
+when the pairwise distances \emph{shrink}---the signature of a
+single-transmitter spoofer that collapses all fixes onto one point:
+\begin{equation}
+f\bigl(\{r_{ij}\}\bigr)\;\underset{H_1}{\overset{H_0}{\gtrless}}\;\lambda,
+\qquad \text{alarm if } f<\lambda,
+\label{eq:jansen}
+\end{equation}
+with the three variants of its Appendix~A implemented here:
+\begin{align}
+f_{\min}  &= \min_{i<j} r_{ij}, &
+f_{\max}  &= \max_{i<j} r_{ij}, &
+f_{\mathrm{maj}} &= \operatorname*{med}_{i<j} r_{ij},
+\label{eq:variants}
+\end{align}
+where the median form is equivalent to the paper's (normalized) majority
+voting: at least half of the pairs below $\lambda$ iff the median is.
+Jansen et al.\ set $\lambda$ from a Rician ($H_0$) / Rayleigh ($H_1$)
+model of the pairwise distance with spatially correlated position noise,
+$\sigma_d=\sqrt{2}\,\sigma\sqrt{1-\rho}$; we calibrate $\lambda$
+empirically to the same effect (Sec.~\ref{sec:metrics}).
+
+\subsection{Formation consistency test}
+As a representative of the two-sided GNSS-vs-ranging consistency family
+--- $|d_{\mathrm{GPS}}-d_{\mathrm{UWB}}|>d_{\mathrm{thr}}$ for UAV
+swarms~\cite{mykytyn2023uwb}, double-difference GLRTs across
+receivers~\cite{stenberg2022multiple}, GLRTs fusing GNSS fixes with
+inter-vehicle ranges~\cite{swaszek2017platoon} --- we use the worst-pair
+statistic
+\begin{equation}
+T_{\mathrm{cons}} = \max_{i<j}\,\bigl|\,r_{ij}-1\,\bigr|,
+\qquad \text{alarm if } T_{\mathrm{cons}}>\lambda .
+\label{eq:cons}
+\end{equation}
+Unlike~\eqref{eq:jansen}, this test fires on \emph{any} deformation of
+the formation, in either direction, and is therefore the natural
+candidate against a distributed attacker that scatters rather than
+collapses the fixes.
+
+\subsection{Threshold calibration and metrics}
+\label{sec:metrics}
+Following the Neyman--Pearson practice
+of~\cite{jansen2016multireceiver}, thresholds are calibrated on the
+$H_0$ (no-spoofing) scenario, simulated with the same noise levels:
+$\lambda$ is the empirical $\PFA$-quantile (lower quantile for the
+collapse tests, upper for the consistency test) of the statistic over all
+$H_0$ epochs, with $\PFA=10^{-2}$. Performance is then reported as (i)
+the detection probability $\PD$, the fraction of attacked epochs that
+raise an alarm; (ii) full ROC curves obtained by sweeping $\lambda$; and
+(iii) the median relative distance distortion
+$E=\operatorname{med}_{i<j} |\hat{d}_{ij}-d_{ij}|/d_{ij}$, which
+measures the geometric evidence available to any relative-distance
+detector.
+
+% =========================================================================
+\section{Simulation Results}
+\label{sec:results}
+
+\subsection{Setup}
+Table~\ref{tab:params} summarizes the simulation parameters. For each
+formation spacing $g\in\{5,10,20,50,100\}$\,m and each scenario
+(\textsf{H0}, \textsf{rigid}, \textsf{power}) we run $N_{\mathrm{MC}}=2$
+Monte Carlo repetitions of the full 20-minute mission (240 epochs each);
+the random start time, clock biases, and noise realizations are shared
+across scenarios within a repetition, so differences are attributable to
+the attack alone. The simulator and detection code are available in the
+companion repository.%
+\footnote{\url{https://github.com/silviasch01/GPS_spoofing_distribuito}}
+
+\begin{table}[!t]
+\caption{Simulation parameters.}
+\label{tab:params}
+\centering
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Swarm size $m$ & $25$ ($5\times5$ grid) \\
+Formation spacing $g$ & $5$--$100$\,m \\
+Mission duration / epoch & $1200$\,s / $T_s=5$\,s \\
+Satellites & $24$ (6 planes, $55^\circ$, 20\,200\,km) \\
+Pseudorange noise $\sigma_{\mathrm{pr}}$ & $3$\,m \\
+Ranging noise $\sigma_{\mathrm{rng}}$ & $0.1$\,m \\
+Ground spoofers $N_{\mathrm{sp}}$ & $24$ on circle, $R_{\mathrm{sp}}=2.5$\,km \\
+Spoofer EIRP & $1$\,mW $+$ $1$\,dB \\
+Ground-to-UAV channel & Eq.~\eqref{eq:alhourani}, \cite{alhourani2018cellular} \\
+Target false-alarm rate $\PFA$ & $10^{-2}$ \\
+Monte Carlo runs & $2$ per (spacing, scenario) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{fig_scenario}
+\caption{Attack scenario (one epoch, $g=20$\,m). The swarm (true
+positions, dots) flies its mission; 24 ground spoofers (triangles) on a
+2.5\,km circle impersonate one satellite each. Under the coordinated
+attack the estimated fixes (open squares) reproduce the formation rigidly
+translated onto the decoy trajectory (dashed).}
+\label{fig:scenario}
+\end{figure}
+
+\subsection{Attack effectiveness}
+Both attacks succeed at displacing the swarm: under \textsf{rigid} the
+center UAV's estimated position is dragged by the full decoy offset
+(4.0\,km on average over the mission) at every epoch, and under
+\textsf{power} a comparable displacement (4.6\,km on average) is
+achieved (Fig.~\ref{fig:timeseries}, top). The difference is in what the attacks
+do to the swarm's \emph{shape} (Fig.~\ref{fig:timeseries}, bottom): the
+uncoordinated attack deforms the formation persistently, while the
+coordinated attack leaves the relative geometry statistically
+indistinguishable from the no-attack case.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{fig_timeseries}
+\caption{Per-epoch behaviour at $g=20$\,m (single run). Top: position
+offset of the center UAV---both attacks displace the swarm by
+kilometres. Bottom: median relative-distance error---\textsf{rigid}
+(red) coincides with \textsf{H0} (grey), \textsf{power} (orange) deforms
+the formation by ${\sim}50\%$.}
+\label{fig:timeseries}
+\end{figure}
+
+\subsection{Formation distortion}
+Figure~\ref{fig:distortion} reports the median relative distance
+distortion $E$. Under \textsf{H0} the distortion is pure GNSS noise and
+decays as $1/g$ (from 18\,\% at $g=5$\,m to 0.8\,\% at 100\,m, with
+$\sigma_{\mathrm{pr}}=3$\,m). The \textsf{rigid} attack is
+\emph{identical} to \textsf{H0} to the fourth significant digit at every
+spacing---the common translation cancels exactly in every pairwise
+difference, as predicted by Proposition~\ref{prop:null}. The
+\textsf{power} attack instead distorts the formation by 42--56\,\%
+regardless of spacing: the per-UAV propagation term
+in~\eqref{eq:power} scales with the baseline, so the deformation never
+averages out and, for $g\gtrsim20$\,m, towers over the noise floor.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.92\columnwidth]{fig_distortion}
+\caption{Median relative-distance distortion vs.\ formation spacing.
+\textsf{rigid} coincides with the no-attack noise floor; \textsf{power}
+deforms the formation by ${\sim}50\%$ at every spacing.}
+\label{fig:distortion}
+\end{figure}
+
+\subsection{Detection performance}
+Table~\ref{tab:pd} and Fig.~\ref{fig:pd} report $\PD$ at
+$\PFA=10^{-2}$; Fig.~\ref{fig:roc} shows the ROC curves at $g=20$\,m.
+Three observations follow.
+
+\begin{table}[!t]
+\caption{Detection probability at $\PFA=10^{-2}$
+($\sigma_{\mathrm{pr}}=3$\,m, $\sigma_{\mathrm{rng}}=0.1$\,m; 480 epochs
+per cell). \textsf{H0} columns verify the calibration.}
+\label{tab:pd}
+\centering
+\setlength{\tabcolsep}{4.2pt}
+\begin{tabular}{l ccc ccc}
+\toprule
+& \multicolumn{3}{c}{Jansen majority~\eqref{eq:variants}}
+& \multicolumn{3}{c}{Consistency~\eqref{eq:cons}} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+$g$ [m] & \textsf{H0} & \textsf{rigid} & \textsf{power}
+        & \textsf{H0} & \textsf{rigid} & \textsf{power} \\
+\midrule
+  5 & 0.008 & \textbf{0.010} & 0.733 & 0.008 & \textbf{0.008} & 0.010 \\
+ 10 & 0.008 & \textbf{0.010} & 0.754 & 0.008 & \textbf{0.010} & 0.025 \\
+ 20 & 0.008 & \textbf{0.010} & 0.667 & 0.008 & \textbf{0.010} & 0.196 \\
+ 50 & 0.008 & \textbf{0.010} & 0.792 & 0.008 & \textbf{0.008} & 0.733 \\
+100 & 0.008 & \textbf{0.008} & 0.790 & 0.008 & \textbf{0.008} & 0.975 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+First, the \textbf{uncoordinated attack is detectable}. The consistency
+test~\eqref{eq:cons} reaches $\PD=0.73$ at $g=50$\,m and $0.98$ at
+100\,m, where the 50\,\% deformation dwarfs the noise; below 20\,m the
+noise floor masks it. The Jansen variants detect \textsf{power} only
+partially ($\PD\approx0.65$--$0.80$): they are one-sided collapse tests,
+and the distributed attack \emph{scatters} the fixes instead of
+collapsing them---indeed $f_{\max}$, which requires every pair to
+shrink, barely fires at all ($\PD\le0.66$).
+
+Second, the \textbf{coordinated attack is invisible}: for all four
+detectors and all spacings, $\PD\in\{0.008,0.010\}\approx\PFA$, and the
+ROC curves for \textsf{rigid} lie on the chance diagonal
+(Fig.~\ref{fig:roc}). This is not a tuning artifact: by
+Proposition~\ref{prop:null} no threshold, window length, or variant of a
+relative-only statistic can do better.
+
+Third, the comparison quantifies the \textbf{coordination gap}: the
+42--56\,\% residual deformation of~\eqref{eq:power} is what currently
+separates a physical ground array from the null space. An attacker able
+to apply the per-victim pre-compensation of~\eqref{eq:rigid}---which
+requires knowledge of each UAV's position to within the detector's noise
+floor, i.e.\ metres---closes the gap entirely.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{fig_pd}
+\caption{Detection probability vs.\ formation spacing at
+$\PFA=10^{-2}$ for the four detectors. The \textsf{rigid} curves lie on
+the $\PFA$ line at every spacing.}
+\label{fig:pd}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{fig_roc}
+\caption{ROC curves at $g=20$\,m. Under the coordinated attack
+(\textsf{rigid}) every detector operates on the chance diagonal.}
+\label{fig:roc}
+\end{figure}
+
+% =========================================================================
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+\subsubsection*{Scope of the blindness claim}
+Proposition~\ref{prop:null} covers detectors that are functions of
+relative position/distance quantities---the collapse and consistency
+families evaluated here, the double-difference and rigid-body GLRTs
+of~\cite{stenberg2022multiple,kalantari2020rigidbody}, the swarm
+GNSS-vs-UWB checks of~\cite{mykytyn2023uwb,bi2024sdp}---and, in the time
+domain, GNSS/INS detectors built on displacement consistency: the
+maneuver statistic of SemperFi~\cite{sathaye2022semperfi} is computed on
+displacements from the maneuver start, so a constant
+$\boldsymbol{\Delta}$ cancels identically, and in tightly coupled INS
+monitors a constant offset absorbed at filter initialization produces
+zero innovation~\cite{tanil2018insmonitor,kujur2024insmonitor}. It does
+\emph{not} cover (i) \emph{direction-of-arrival} detectors: a circle of
+ground transmitters produces arrivals at near-zero elevation,
+incongruent with the satellite constellation, so multi-antenna arrays
+with attitude information would detect our attacker unless its
+transmitters are placed along the satellite directions as
+in~\cite{tibaldo2025gnsswasp}; nor (ii) \emph{absolute-reference}
+checks---ranging to fixed infrastructure, TDoA from ground sensor
+networks~\cite{jansen2018crowdgpssec}, terrain or signal-of-opportunity
+positioning---for which the common translation is directly observable.
+A complete defense should therefore anchor at least one absolute
+reference, consistent with the anchor requirements derived
+in~\cite{park2026rigidshift}.
+
+\subsubsection*{Idealized rigid model}
+Eq.~\eqref{eq:rigid} prescribes the delays of a \emph{perfectly}
+coordinated array; it is an upper bound for the attacker, adopted
+deliberately so that the detector-side conclusion is threshold-free. A
+physical ground array approximates it with a residual non-rigidity that
+grows with swarm aperture and shrinks with transmitter altitude and
+range---GNSS-WASP measured sub-metre residuals at 1\,km in
+hardware~\cite{tibaldo2025gnsswasp}, below every published formation
+threshold (e.g.\ ${\approx}5$\,m~\cite{mykytyn2023uwb},
+${\approx}3.6$\,m~\cite{jansen2016multireceiver}). Mapping the residual
+of \emph{our} ground-circle geometry as a function of radius, altitude,
+and swarm extent is the natural next step; the \textsf{power} results
+already bound it from above.
+
+\subsubsection*{Other simplifications}
+The simulator uses a spherical Earth, a synthetic constellation,
+uncorrelated pseudorange noise (spatial correlation would \emph{lower}
+the detector's noise floor~\cite{jansen2016multireceiver}, strengthening
+the \textsf{power} detection result but leaving
+Proposition~\ref{prop:null} untouched), no multipath, and signal capture
+by simple power comparison without tracking-loop dynamics.
+
+% =========================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+We evaluated the classical multi-receiver relative-distance spoofing
+detectors against a distributed ground spoofer attacking a UAV swarm.
+An uncoordinated 24-transmitter attack displaces the swarm but deforms
+its formation by ${\sim}50\%$ and is detected (up to $\PD=0.98$ at
+$\PFA=10^{-2}$); the same attack with per-victim coordination imposes a
+common rigid translation, preserves every pairwise distance, and reduces
+the entire detector family---Jansen's collapse variants and the
+formation-consistency test---to chance level at every formation spacing,
+as dictated by a simple invariance argument. The practical security of
+relative-distance detection thus rests not on its statistic but on the
+attacker's coordination cost, which recent hardware results are rapidly
+eroding; robust swarm navigation requires anchoring to at least one
+absolute position reference.
+
+% =========================================================================
+\section*{Acknowledgments}
+\todo{ringraziamenti, funding}
+
+\bibliographystyle{IEEEtran}
+\bibliography{biblio}
+
+\end{document}
