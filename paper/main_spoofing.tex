@@ -511,14 +511,13 @@ Table~\ref{tab:pd} and Fig.~\ref{fig:pd} report $\PD$ at $\PFA=10^{-2}$
 with 95\,\% confidence intervals; Fig.~\ref{fig:roc} shows the ROC
 curves at $g=20$\,m. Three observations follow.
 
-\begin{table}[!t]
+\begin{table*}[!t]
 \caption{Detection probability at $\PFA=10^{-2}$ against the physical
 distributed attack ($\sigma_{\mathrm{pr}}=3$\,m,
 $\sigma_{\mathrm{rng}}=0.1$\,m; 20 missions, 4800 epochs per cell;
 95\,\% CI from the paired mission bootstrap).}
 \label{tab:pd}
 \centering
-\setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{l cccc}
 \toprule
 $g$ [m] & Jansen min & Jansen max & Jansen majority & Consistency \\
@@ -530,7 +529,7 @@ $g$ [m] & Jansen min & Jansen max & Jansen majority & Consistency \\
 100 & 0.003 [0.000, 0.011] & 0.000 [0.000, 0.000] & 0.000 [0.000, 0.000] & 0.649 [0.474, 0.845] \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 First, \textbf{the collapse detectors are defeated at every spacing}:
 all three Jansen variants give $\PD\le0.011$ (95\,\% upper bound), i.e.\
