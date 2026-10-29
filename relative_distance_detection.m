@@ -55,13 +55,18 @@ clear
 close all
 
 % ---------------------------------------------------------------- parameters
-grid_steps = [5 10 20 50 100];   % formation spacing [m]
+% formation spacing [m]: the 5-20 m range covers the typical inter-UAV
+% separation of outdoor GPS-based formation flight (5 m in Cheok et al.,
+% SAE Int. J. Aerospace 2022, and Grundler & Ryan, Cal Poly 2025; Guo et
+% al., IEEE TAES 2025, derive the minimum spacing from navigation+control
+% error, metres with GPS); sub-metre spacings require RTK (light shows)
+grid_steps = [5 8 10 12 15 20];
 grid_points = 5;                 % 5x5 receivers (m = 25)
 Nruns = 20;                      % Monte Carlo missions (random start time, clocks, noise)
 sigma_pr = 3;                    % pseudorange noise std [m]
 sigma_range = 0.1;               % inter-receiver ranging noise std [m]
 Pfa = 0.01;                      % target false alarm probability
-roc_step = 20;                   % grid_step used for the ROC figure
+roc_step = 10;                   % grid_step used for the ROC figure
 Nboot = 500;                     % bootstrap resamples (over missions)
 % attack deployment: the ground array must enclose the operating area of the
 % swarm (the mission trajectory spans ~7 km from its start point)
