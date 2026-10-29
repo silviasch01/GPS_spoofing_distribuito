@@ -109,7 +109,7 @@ function out = GPS_mobility_v4_prove(opts)
 		% maximum number of satellites replaced by the spoofer for every user
 		max_spoofed_sats = getopt(opts,'max_spoofed_sats',inf);
 		[measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
-			spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats);
+			spoof_for_sat,coords,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats);
 	end
 
 	% pseudorange noise (std in meters), independent for every measurement
@@ -394,6 +394,10 @@ function p = coords_to_frame(t,lat,lon,alt)
 	p = (R_Earth+alt)*u1;
 end
 
+% NOT USED IN PAPER (kept for reference): free-space variant of the physical
+% attack, without the Al-Hourani ground-to-UAV channel. It still uses the
+% legacy great-circle distance and the nominal R_spoofers reference (the
+% A1/A2 issues fixed in spoofing_sim); do not use it for results.
 function [measured_delay,delta_t] = spoofing_sim_freespace(Pt_spoof,Gt_spoof,spoofer_coords,...
 		spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers)
 	Nt = size(coords_grid,1);
@@ -455,14 +459,31 @@ function [measured_delay,delta_t] = spoofing_sim_freespace(Pt_spoof,Gt_spoof,spo
 end
 
 function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
-		spoof_for_sat,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats)
-	if nargin < 10
+		spoof_for_sat,coords,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats)
+	% Physical distributed attack. Each visible satellite is replayed by its
+	% assigned ground spoofer. The spoofer calibrates the replayed code phase
+	% so that, at the TRUE swarm centre, the measured delay equals the decoy
+	% delay delay_spoof(i,sat). A drone displaced from the centre therefore
+	% measures delay_spoof plus the extra slant path
+	%     ( d3d(spoofer->drone) - d3d(spoofer->centre) ) / c ,
+	% where both are TRUE 3D (slant) distances in the inertial frame. This is
+	% the physical, per-transmitter attack: no per-victim pre-compensation is
+	% applied, so the residual non-rigidity is a genuine property of the
+	% ground geometry, not an artefact.
+	%
+	% Note (A1/A2 fix): the delay term now uses true 3D slant distances via
+	% coords_to_frame instead of the great-circle coords_distance (which
+	% ignored altitude) and the nominal circle radius R_spoofers as reference.
+	% The horizontal great-circle distance is kept ONLY for the Al-Hourani
+	% terrestrial path-loss term, consistent with that channel model.
+	if nargin < 11
 		max_spoofed_sats = inf;
 	end
 
 	Nt = size(coords_grid,1);
 	Nusers = (size(coords_grid,2)-1)/3;
 	Nsats = size(spoof_for_sat,2);
+	Nspoof = numel(spoofer_coords)/3;
 
 	% Generate the set of receiver clock errors delta_t (#users), independent
 	% for every user (positive if the receiver's clock is early)
@@ -490,38 +511,58 @@ function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,sp
 	is_spoofed = false(Nt,Nsats,Nusers);
 
 	for i = 1:Nt
+		t = coords_grid(i,1);
+		% true swarm centre, the point where the spoofers calibrate delay_spoof
+		cen = coords_to_frame(t, coords(i,2), coords(i,3), coords(i,4));
+		% spoofer and drone positions in the inertial frame (for 3D slant
+		% distances); spoofers are on the ground and rotate with the Earth
+		sp_frame = zeros(3,Nspoof);
+		for k = 1:Nspoof
+			sp_frame(:,k) = coords_to_frame(t, spoofer_coords(3*(k-1)+1), ...
+				spoofer_coords(3*(k-1)+2), spoofer_coords(3*(k-1)+3));
+		end
+		dr_frame = zeros(3,Nusers);
+		for u = 1:Nusers
+			dr_frame(:,u) = coords_to_frame(t, coords_grid(i,2+3*(u-1)), ...
+				coords_grid(i,3+3*(u-1)), coords_grid(i,4+3*(u-1)));
+		end
+
 		for u = 1:Nusers
 			N_spoofed_sats = 0;
 			for sat = 1:Nsats
 				if elevation(i,sat,u) > 0
+					ksp = spoof_for_sat(i,sat);
 
-					spoofer_to_rx_distance = coords_distance(...
-						spoofer_coords((spoof_for_sat(i,sat)-1)*3+(1:3)), ...
+					% true 3D slant distances (A1): spoofer->drone, and (A2)
+					% spoofer->true centre, the reference of the replayed delay
+					d3d_rx     = norm(sp_frame(:,ksp) - dr_frame(:,u));
+					d3d_center = norm(sp_frame(:,ksp) - cen);
+
+					% horizontal great-circle distance, used ONLY for the
+					% Al-Hourani terrestrial path-loss term
+					d_horiz = coords_distance(...
+						spoofer_coords((ksp-1)*3+(1:3)), ...
 						coords_grid(i, 1+(u-1)*3+(1:3)));
 
 					Pr_sat = Pt_sat*Gt_sat*Gr*(1/(4*pi*fc*delay(i,sat,u)))^2;
 
-					theta_rad = elevation_drones(i, spoof_for_sat(i,sat), u);
-					theta_deg = min(rad2deg(theta_rad),10); % between -2 and 10°
-					% if theta_deg < -2 || theta_deg > 10
-					% 	fprintf('!');
-					% end
+					theta_rad = elevation_drones(i, ksp, u);
+					% the Al-Hourani excess-loss fit is valid for -2..10 deg;
+					% larger angles are saturated at 10 deg (declared in the paper)
+					theta_deg = min(rad2deg(theta_rad),10);
 
-					% sigma_db = a*theta_deg + sigma_0;
-					% X_db = sigma_db*randn();
-
-					terrestrial_PL_db = 10*alpha *log10(spoofer_to_rx_distance); % -100@1000m
+					terrestrial_PL_db = 10*alpha *log10(d_horiz);
 					excess_PL_db = A*(theta_deg - theta_0)*exp(-(theta_deg - theta_0)/B)+eta_0;
-
-					% PL_db = terrestrial_PL_db + excess_PL_db + X_db;
 					PL_db = terrestrial_PL_db + excess_PL_db;
 					PL_linear = 10^(PL_db/10);
 
 					Pr_spoofer = Pt_spoof*Gt_spoof*Gr/PL_linear;
 
 					if Pr_sat < Pr_spoofer && N_spoofed_sats < max_spoofed_sats
+						% replayed decoy delay plus the extra slant path seen
+						% by this drone w.r.t. the calibration point (centre)
 						measured_delay(i,sat,u) = delay_spoof(i,sat) - delta_t(i,u) ...
-							- (R_spoofers - spoofer_to_rx_distance)/c;
+							+ (d3d_rx - d3d_center)/c;
 						N_spoofed_sats = N_spoofed_sats + 1;
 						is_spoofed(i,sat,u) = true;
 					else
@@ -546,6 +587,9 @@ function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,sp
 	% delay(sigma_delay<inf) = delay(sigma_delay<inf) + randn_delay(sigma_delay<inf);
 end
 
+% NOT USED IN PAPER (reachable only with CONSENSUS=true): single-spoofer
+% power-consensus experiment. It still uses the legacy great-circle distance
+% and the nominal R_spoofers reference; do not use it for results.
 function [measured_delay, delta_t, Pt_spoof_dBW] = spoofing_sim_consensus(...
 		spoof_ratio, spoofed_sats_rel_power, Gt_spoof, spoofer_coords, ...
 		coords_grid, elevation, delay, delay_spoof, R_spoofers)
