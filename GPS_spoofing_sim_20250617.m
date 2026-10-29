@@ -72,8 +72,21 @@ function out = GPS_mobility_v4_prove(opts)
 	end
 	spoofer_coords = points_on_circle(N_spoofers,center_coords,R_spoofers);
 
-	% determine the best (closest) spoofer for every satellite
-	spoof_for_sat = spoofer_assign(center_coords,spoofer_coords,azimuth_spoof);
+	% satellite -> spoofer routing: every visible satellite is replayed by the
+	% spoofer whose azimuth is closest to the satellite's. The transmitters
+	% never move; only the routing (which fixed transmitter replays which
+	% satellite) is decided.
+	%  'track'  (default): azimuths evaluated at every epoch from the CURRENT
+	%           true swarm centre, which the attacker already tracks to
+	%           calibrate the replayed delays
+	%  'static': azimuths referred once to the fixed array centre center_coords
+	%           (legacy behaviour; wrong whenever the swarm leaves the centre)
+	assign_mode = getopt(opts,'assign_mode','track');
+	if strcmpi(assign_mode,'track')
+		spoof_for_sat = spoofer_assign_track(coords,spoofer_coords,azimuth(:,:,u_center));
+	else
+		spoof_for_sat = spoofer_assign(center_coords,spoofer_coords,azimuth_spoof);
+	end
 
 	% returns a matrix of size (#times, #satellites, #users) with the measured
 	% delays, affected by timing error delta_t(user).
@@ -716,6 +729,18 @@ function elevation_drones = drone_elevation_from_spoofers(coords_grid, spoofer_c
 	end
 end
 
+
+% per-epoch routing: spoofer azimuths re-evaluated from the current true
+% swarm centre coords(i,2:4) and matched to the satellite azimuths seen from
+% that centre (azimuth_center: #times x #satellites)
+function spoof_for_sat = spoofer_assign_track(coords,spoofer_coords,azimuth_center)
+	Nt = size(azimuth_center,1);
+	Nsat = size(azimuth_center,2);
+	spoof_for_sat = zeros(Nt,Nsat);
+	for i = 1:Nt
+		spoof_for_sat(i,:) = spoofer_assign(coords(i,2:4),spoofer_coords,azimuth_center(i,:));
+	end
+end
 
 function spoof_for_sat = spoofer_assign(center_coords,spoofer_coords,azimuth_spoof)
 	u0 = coords_to_unitv(center_coords);
