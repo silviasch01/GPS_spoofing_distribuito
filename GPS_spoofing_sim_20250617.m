@@ -111,8 +111,9 @@ function out = GPS_mobility_v4_prove(opts)
 		Pt_spoof = getopt(opts,'Pt_spoof',1e-3);
 		% maximum number of satellites replaced by the spoofer for every user
 		max_spoofed_sats = getopt(opts,'max_spoofed_sats',inf);
-		[measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
-			spoof_for_sat,coords,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats);
+		[measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac] = spoofing_sim(...
+			Pt_spoof,Gt_spoof,spoofer_coords,spoof_for_sat,coords,coords_grid,elevation,...
+			delay,delay_spoof,R_spoofers,max_spoofed_sats);
 	end
 
 	% pseudorange noise (std in meters), independent for every measurement
@@ -138,6 +139,13 @@ function out = GPS_mobility_v4_prove(opts)
 		if exist('is_spoofed','var')
 			out.is_spoofed = is_spoofed; % (#times, #satellites, #users)
 		end
+		if exist('Pr_sat_dBW','var')
+			out.Pr_sat_dBW = Pr_sat_dBW;        % link budget, authentic (dBW)
+			out.Pr_sp_dBW = Pr_sp_dBW;          % link budget, spoofer (dBW)
+			out.theta_sat_frac = theta_sat_frac; % fraction of links with theta>10deg
+		end
+		out.spoof_for_sat = spoof_for_sat;
+		out.u_center = u_center;
 		out.elevation = elevation;
 	end
 	if ~PLOT
@@ -411,7 +419,7 @@ function [measured_delay,delta_t] = spoofing_sim_freespace(Pt_spoof,Gt_spoof,spo
 	% delay(sigma_delay<inf) = delay(sigma_delay<inf) + randn_delay(sigma_delay<inf);
 end
 
-function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
+function [measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
 		spoof_for_sat,coords,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats)
 	% Physical distributed attack. Each visible satellite is replayed by its
 	% assigned ground spoofer. The spoofer calibrates the replayed code phase
@@ -462,6 +470,12 @@ function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,sp
 	elevation_drones= drone_elevation_from_spoofers(coords_grid, spoofer_coords,Nusers);
 	measured_delay = zeros(Nt,Nsats,Nusers);
 	is_spoofed = false(Nt,Nsats,Nusers);
+	% link budget (dBW) of every visible link, for verification/reporting
+	Pr_sat_dBW = -inf(Nt,Nsats,Nusers);
+	Pr_sp_dBW = -inf(Nt,Nsats,Nusers);
+	% fraction of visible links whose spoofer elevation angle exceeded the
+	% 10 deg validity limit of the Al-Hourani excess-loss fit (saturated)
+	n_links = 0; n_sat_links = 0;
 
 	for i = 1:Nt
 		t = coords_grid(i,1);
@@ -502,6 +516,10 @@ function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,sp
 					theta_rad = elevation_drones(i, ksp, u);
 					% the Al-Hourani excess-loss fit is valid for -2..10 deg;
 					% larger angles are saturated at 10 deg (declared in the paper)
+					n_links = n_links + 1;
+					if rad2deg(theta_rad) > 10
+						n_sat_links = n_sat_links + 1;
+					end
 					theta_deg = min(rad2deg(theta_rad),10);
 
 					terrestrial_PL_db = 10*alpha *log10(d_horiz);
@@ -510,6 +528,8 @@ function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,sp
 					PL_linear = 10^(PL_db/10);
 
 					Pr_spoofer = Pt_spoof*Gt_spoof*Gr/PL_linear;
+					Pr_sat_dBW(i,sat,u) = 10*log10(Pr_sat);
+					Pr_sp_dBW(i,sat,u) = 10*log10(Pr_spoofer);
 
 					if Pr_sat < Pr_spoofer && N_spoofed_sats < max_spoofed_sats
 						% replayed decoy delay plus the extra slant path seen
@@ -527,6 +547,7 @@ function [measured_delay,delta_t,is_spoofed] = spoofing_sim(Pt_spoof,Gt_spoof,sp
 			end
 		end
 	end
+	theta_sat_frac = n_sat_links/max(n_links,1);
 
 	% Optional: add noise
 	% Tchip = 1/1.023e6;
