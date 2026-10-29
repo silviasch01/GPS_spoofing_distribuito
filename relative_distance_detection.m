@@ -29,29 +29,26 @@
 %     Borio & Gioia sum-of-squares detector (TAES 2016), which is a two-receiver
 %     carrier-phase test.
 %
-% SemperFi (Sathaye et al., NDSS 2022), GNSS/INS fusion, is NOT evaluated here.
-% It is cited as blind for the SAME structural reason: a rigid translation of
-% the whole swarm preserves the SHAPE of the trajectory flown during the
-% anti-spoofing maneuver, so the IMU-vs-GPS track comparison (which only sees
-% relative motion, not absolute position) falls in the same translational
-% null-space. See the note at the bottom of this file.
+% SemperFi (Sathaye et al., NDSS 2022), GNSS/INS fusion, is NOT evaluated here
+% (see the note at the bottom of this file).
 %
 % --------------------------------------------------------------- attack models
-%   H0     : no spoofing                 (used only to calibrate the thresholds)
-%   rigid  : null-space attack. A coordinated distributed spoofer imposes the
-%            SAME position offset Delta on every receiver (spoofMode='rigid').
-%            The absolute position is wrong, but every r_ij ~ 1, so the whole
-%            detector family is BLIND. --> this is the result we want to show.
-%   power  : naive distributed attack with the physical ground-spoofer power
-%            model. It distorts the formation (r_ij spread), so a consistency
-%            test DOES fire. Shown as contrast: the attacker must be coordinated
-%            (rigid) to defeat the detectors.
+%   H0     : no spoofing (used only to calibrate the thresholds)
+%   power  : the physical distributed attack of the simulator: 24 ground
+%            spoofers on a circle, one per impersonated satellite (assigned by
+%            azimuth), capture decided by received power through the
+%            Al-Hourani ground-to-UAV channel, replayed delay calibrated at
+%            the true swarm centre plus the true 3D slant-path difference seen
+%            by each drone (spoofing_sim). No per-victim pre-compensation and
+%            no idealized/oracle attack is simulated: whatever residual
+%            formation distortion the detectors see is a property of the
+%            physical geometry.
 %
 % The thresholds are calibrated on H0 (same GNSS/ranging noise) for a target
 % false alarm probability Pfa; the detection probability Pd is the fraction of
 % spoofed epochs that raise an alarm. The formation spacing (grid_step) is
-% swept, because the formation distortion of the NAIVE attack scales with the
-% baselines while the GNSS noise does not.
+% swept, because any residual formation distortion scales with the baselines
+% while the GNSS noise does not.
 
 clear
 close all
@@ -66,8 +63,7 @@ Pfa = 0.01;                      % target false alarm probability
 roc_step = 20;                   % grid_step used for the ROC figure
 
 scen(1) = struct('name','H0',    'opts',struct('Pt_spoof',0));
-scen(2) = struct('name','rigid', 'opts',struct('spoofMode','rigid'));
-scen(3) = struct('name','power', 'opts',struct('spoofMode','power','max_spoofed_sats',inf));
+scen(2) = struct('name','power', 'opts',struct('max_spoofed_sats',inf));
 det_names = {'Jansen min','Jansen max','Jansen majority','Formation consistency (Stenberg/Mykytyn)'};
 
 Nscen = numel(scen);
@@ -257,11 +253,10 @@ end
 % when the averaged Euclidean deviation exceeds ~5 m. It detects attacks that
 % make the GPS track DISAGREE with the inertial track in shape/relative motion.
 %
-% The rigid-translation attack adds the SAME constant offset Delta to every GPS
-% fix at every epoch. The GPS-derived displacement between consecutive samples,
-% (p+Delta)[t+1] - (p+Delta)[t] = p[t+1]-p[t], is therefore identical to the
-% inertial one: the maneuver shape is preserved and the IMU-vs-GPS deviation
-% stays ~0. The attack lives in the same translational null-space as the
-% relative-distance detectors, so SemperFi is cited as blind for the same
-% structural reason, without a separate experiment.
+% Its statistic is built on displacements from the manoeuvre start, so it
+% responds to the time-varying part of the induced position error, not to a
+% constant offset. Whether the physical distributed attack simulated here
+% would be seen by it depends on how the induced error varies along the
+% manoeuvre, which this script does not model; it is therefore left out of
+% the evaluation rather than claimed either way.
 % ---------------------------------------------------------------------------
