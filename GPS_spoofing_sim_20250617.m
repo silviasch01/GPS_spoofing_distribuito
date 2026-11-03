@@ -142,10 +142,13 @@ function out = GPS_mobility_v4_prove(opts)
 		if exist('Pr_sat_dBW','var')
 			out.Pr_sat_dBW = Pr_sat_dBW;        % link budget, authentic (dBW)
 			out.Pr_sp_dBW = Pr_sp_dBW;          % link budget, spoofer (dBW)
-			out.theta_sat_frac = theta_sat_frac; % fraction of links with theta>10deg
+			out.theta_sat_frac = theta_sat_frac(1); % fraction of links with theta>10deg
+			out.theta_max_deg = theta_sat_frac(2);  % largest spoofer elevation angle met
 		end
 		out.spoof_for_sat = spoof_for_sat;
 		out.u_center = u_center;
+		out.azimuth = azimuth;       % (#times, #satellites, #users), rad, atan2(N,E)
+		out.R_spoofers = R_spoofers;
 		out.elevation = elevation;
 	end
 	if ~PLOT
@@ -474,8 +477,9 @@ function [measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac]
 	Pr_sat_dBW = -inf(Nt,Nsats,Nusers);
 	Pr_sp_dBW = -inf(Nt,Nsats,Nusers);
 	% fraction of visible links whose spoofer elevation angle exceeded the
-	% 10 deg validity limit of the Al-Hourani excess-loss fit (saturated)
-	n_links = 0; n_sat_links = 0;
+	% 10 deg validity limit of the Al-Hourani excess-loss fit (saturated),
+	% and the largest angle met
+	n_links = 0; n_sat_links = 0; theta_max_deg = -inf;
 
 	for i = 1:Nt
 		t = coords_grid(i,1);
@@ -517,6 +521,7 @@ function [measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac]
 					% the Al-Hourani excess-loss fit is valid for -2..10 deg;
 					% larger angles are saturated at 10 deg (declared in the paper)
 					n_links = n_links + 1;
+					theta_max_deg = max(theta_max_deg, rad2deg(theta_rad));
 					if rad2deg(theta_rad) > 10
 						n_sat_links = n_sat_links + 1;
 					end
@@ -547,7 +552,7 @@ function [measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac]
 			end
 		end
 	end
-	theta_sat_frac = n_sat_links/max(n_links,1);
+	theta_sat_frac = [n_sat_links/max(n_links,1), theta_max_deg];
 
 	% Optional: add noise
 	% Tchip = 1/1.023e6;
