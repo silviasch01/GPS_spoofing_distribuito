@@ -79,10 +79,14 @@ N_spoofers = 24;
 
 scen(1) = struct('name','H0',    'opts',struct('Pt_spoof',0));
 scen(2) = struct('name','power', 'opts',struct('max_spoofed_sats',inf));
-det_names = {'Jansen min','Jansen max','Jansen majority','Worst-pair (two-sided)','Two-sided majority'};
+% temporal integration: the two-sided statistics are also evaluated as a
+% moving mean over the last Wint epochs of each mission (12 x 5 s = 1 min)
+Wint = 12;
+det_names = {'Jansen min','Jansen max','Jansen majority','Worst-pair (two-sided)','Two-sided majority', ...
+	'Worst-pair, 1-min window','Two-sided majority, 1-min window'};
 % collapse detectors alarm for SMALL statistics (f < lambda), the two-sided
 % detectors for LARGE statistics (T > lambda)
-alarm_small = [true true true false false];
+alarm_small = [true true true false false false false];
 
 Nscen = numel(scen);
 Ndet = numel(det_names);
@@ -120,6 +124,10 @@ for g = 1:Ngs
 			fprintf('grid_step %4g m | %-6s | mission %2d/%d | median rel. dist. error %6.2f %%\n',...
 				grid_steps(g),scen(s).name,r,Nruns,100*median(Er));
 		end
+		% detectors 6-7: moving mean of the two-sided statistics (columns 4
+		% and 5) over the last Wint epochs, computed within each mission
+		T{g,s}(:,6) = winmean(T{g,s}(:,4),RID{g,s},Wint);
+		T{g,s}(:,7) = winmean(T{g,s}(:,5),RID{g,s},Wint);
 	end
 end
 
@@ -166,7 +174,7 @@ fprintf('\nFraction of spoofer links with elevation angle > 10 deg (Al-Hourani f
 colors = lines(4);
 figure(1)
 for k = 1:Ndet
-	subplot(2,3,k)
+	subplot(2,4,k)
 	lo = squeeze(Pd_ci(:,k,1)); hi = squeeze(Pd_ci(:,k,2));
 	fill([grid_steps fliplr(grid_steps)],[lo' fliplr(hi')],colors(2,:),'FaceAlpha',0.2,'EdgeColor','none');
 	hold on
@@ -183,7 +191,7 @@ g = find(grid_steps==roc_step,1);
 if ~isempty(g)
 	figure(2)
 	for k = 1:Ndet
-		subplot(2,3,k)
+		subplot(2,4,k)
 		t0 = sort(T{g,1}(~isnan(T{g,1}(:,k)),k));
 		thr_c = [-inf;t0;inf];
 		tk = T{g,2}(:,k); tk = tk(~isnan(tk));
@@ -245,6 +253,19 @@ function pd = pd_at_pfa(t0,t1,Pfa,alarm_small)
 		thr = lower_quantile(t0,Pfa); pd = mean(t1 < thr);
 	else
 		thr = upper_quantile(t0,Pfa); pd = mean(t1 > thr);
+	end
+end
+
+% moving mean of x over the last W epochs within each mission (NaN for the
+% first W-1 epochs of a mission, which are excluded from the statistics)
+function y = winmean(x,rid,W)
+	y = nan(size(x));
+	for r = unique(rid)'
+		ii = find(rid == r);
+		v = x(ii);
+		for n = W:numel(v)
+			y(ii(n)) = mean(v(n-W+1:n));
+		end
 	end
 end
 

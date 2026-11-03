@@ -63,10 +63,17 @@ tail ($\PD\le0.011$ at $\PFA=10^{-2}$, ROC area down to $0.001$), and
 is largely masked by GNSS noise for the worst-pair GNSS-vs-UWB check
 used in swarm detectors ($\PD=0.03$--$0.26$); but a two-sided test on
 the median distance ratio detects it at every spacing
-($\PD=0.38$ at 5\,m to $0.98$ at 20\,m, AUC $0.83$--$0.999$). The
-result replaces the collapse signature with a dilation signature as the
-quantity relative-distance detectors should test for against
-distributed ground spoofers, and delimits its scope with respect to
+($\PD=0.38$ at 5\,m to $0.98$ at 20\,m, AUC $0.83$--$0.999$). Raising
+the transmitters trades dilation for contraction: the signed dilation
+crosses zero at a transmitter elevation of about $30^\circ$ (5\,km of
+altitude for a 10\,km array), where every relative-distance test is at
+its weakest ($\PD\le0.22$), while a WASP-like constellation on the
+satellites' lines of sight at slant ranges of 5\,km and beyond is
+undetectable by all of them ($\PD\le0.09$). The result replaces the
+collapse signature with a dilation signature as the quantity
+relative-distance detectors should test for against distributed ground
+spoofers, quantifies the altitude an attacker must reach to erase it,
+and delimits the scope of relative-distance detection with respect to
 direction-of-arrival and absolute-reference defenses.
 \end{abstract}
 
@@ -147,6 +154,13 @@ characterizes outdoor GPS-based formation flight
   a two-sided test on the median distance ratio---showing that the
   dilation escapes the first four and is detected by the fifth at every
   spacing (Section~\ref{sec:results});
+\item a transmitter-altitude sweep and a line-of-sight (WASP-like)
+  placement experiment that measure the cost, in altitude, of erasing
+  the dilation: the signed dilation crosses zero at about $30^\circ$ of
+  transmitter elevation, where all relative-distance tests are at their
+  weakest, and a constellation on the satellites' lines of sight at
+  $\ge5$\,km slant range is undetectable by all of them
+  (Section~\ref{sec:sweep});
 \item a delimitation of the result with respect to direction-of-arrival
   and absolute-reference defenses (Section~\ref{sec:discussion}).
 \end{itemize}
@@ -524,9 +538,9 @@ T_{\mathrm{maj}} = \bigl|\operatorname*{med}_{i<j} r_{ij}-1\bigr|,
 \end{equation}
 the two-sided counterpart of $f_{\mathrm{maj}}$ in~\eqref{eq:variants},
 which is what Remark~\ref{rem:collapse} calls for. Finally, since the
-dilation is persistent, we report the worst-pair test averaged over a
-sliding window of 12 epochs (1\,min) as an example of temporal
-integration.
+dilation is persistent, both two-sided statistics are also evaluated
+after averaging over a sliding window of 12 epochs (1\,min) within each
+mission, as an example of temporal integration.
 
 \subsection{Threshold calibration and metrics}
 \label{sec:metrics}
@@ -703,6 +717,25 @@ $g$ [m] & J.\ min & J.\ max & J.\ maj. & Worst-pair & 2-sided maj. \\
 \end{tabular}
 \end{table}
 
+\begin{table}[!t]
+\caption{Two-sided tests with 1-min temporal integration (moving mean
+over 12 epochs): $\PD$ at $\PFA=10^{-2}$, 95\,\% CI.}
+\label{tab:window}
+\centering
+\begin{tabular}{l cc}
+\toprule
+$g$ [m] & Worst-pair, 1-min & Two-sided majority, 1-min \\
+\midrule
+ 5 & 0.117 [0.019, 0.205] & 0.521 [0.292, 0.701] \\
+ 8 & 0.158 [0.055, 0.309] & 0.698 [0.491, 0.851] \\
+10 & 0.182 [0.059, 0.308] & 0.804 [0.649, 0.945] \\
+12 & 0.224 [0.079, 0.382] & 0.932 [0.832, 0.991] \\
+15 & 0.280 [0.102, 0.454] & 1.000 [0.994, 1.000] \\
+20 & 0.376 [0.167, 0.602] & 1.000 [1.000, 1.000] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 First, \textbf{the collapse detectors test the wrong tail}. All three
 Jansen variants give $\PD\le0.011$ (95\,\% upper bound), at or below
 the false-alarm rate, at every spacing. Their AUC is \emph{below}
@@ -721,8 +754,8 @@ variability of the dilation. The statistic~\eqref{eq:cons} is governed
 by the noisiest of 300 pairs, whose $H_0$ tail at
 $\sigma_{\mathrm{pr}}=3$\,m is wider than the dilation of the typical
 pair over the whole formation-flight regime; averaging it over a
-one-minute window raises $\PD$ to $0.12$--$0.38$, still far from
-reliable detection.
+one-minute window raises $\PD$ only to $0.12$--$0.38$
+(Table~\ref{tab:window}), still far from reliable detection.
 
 Third, \textbf{the two-sided majority test detects the dilation at every
 spacing}: $\PD=0.38$ at 5\,m, $0.63$ at 10\,m and $0.98$ at 20\,m, with
@@ -730,7 +763,10 @@ AUC from $0.83$ to $0.999$. The aggregate statistic~\eqref{eq:maj2}
 averages the noise over all pairs and retains the common bias, which is
 exactly the signature left by a ground array. Its ROC at 10\,m
 (Fig.~\ref{fig:roc}) is the mirror image of the collapse majority
-test's: the same statistic, tested on the right side.
+test's: the same statistic, tested on the right side. With the same
+one-minute integration it becomes reliable over most of the regime:
+$\PD=0.52$ at 5\,m, $0.80$ at 10\,m, $0.93$ at 12\,m and $1.00$ from
+15\,m (Table~\ref{tab:window}).
 
 \begin{figure}[!t]
 \centering
@@ -752,6 +788,105 @@ corner.}
 \label{fig:roc}
 \end{figure}
 
+\subsection{The cost in altitude: from a ground array to a WASP-like
+constellation}
+\label{sec:sweep}
+Equation~\eqref{eq:residual} predicts that the dilation decays as the
+transmitters are raised towards the satellite elevations, and vanishes
+only for transmitters on the satellites' lines of sight---the
+placement realized at altitude by GNSS-WASP~\cite{tibaldo2025gnsswasp}.
+We quantify this trade-off with two experiments at $g=10$\,m, the
+centre of the formation-flight regime (10 missions per configuration;
+elevated transmitters use a free-space link, Section~\ref{sec:system},
+with the EIRP raised to 10\,mW so that capture stays complete, minimum
+margin 14.6\,dB; the delays, and hence the distortion, do not depend on
+the channel).
+
+\emph{Altitude sweep.} The same 24-transmitter, 10\,km array is raised
+from the ground to 10\,km, i.e.\ from $\theta_k\approx0^\circ$ to
+$50^\circ$ as seen from the swarm (Fig.~\ref{fig:sweep}). The model
+reproduces the measured distortion at every altitude (top panel). The
+\emph{signed} dilation decreases monotonically with $\theta_k$, crosses
+zero and turns into a \emph{contraction}: with a single altitude for all
+transmitters the residual cannot vanish for every satellite at once, so
+the satellites below $\theta_k$ pull the formation inward while those
+above still push it outward, and the net effect changes sign where the
+solver-weighted average of $\cos\theta_k-\cos\mathrm{el}_s$ vanishes
+(at $\theta_k\approx39^\circ$ for the mission of the top panel, at
+$\approx29^\circ$, i.e.\ 5\,km altitude, for the pooled Monte Carlo
+missions, whose satellite geometries differ). The detectors follow the
+sign of the residual, not its magnitude (bottom panel): the two-sided
+majority test decreases from $\PD=0.41$ on the ground to a minimum of
+$0.22$ at the crossing and rises again to $0.72$ at $\theta_k=50^\circ$,
+where the contraction reaches $-20\,\%$; the collapse test of Jansen et
+al., blind on the ground, starts firing once the formation contracts
+($\PD=0.08$ at $21^\circ$, $0.41$ at the crossing, $0.83$ at
+$50^\circ$); the worst-pair test, with or without integration, stays at
+$0.05$--$0.11$ throughout, since the residual that survives at the
+crossing (about 10\,\% of the baseline, anisotropic) remains below its
+noise. The attacker's optimum with a common-altitude array is therefore
+not the highest altitude but the crossing one, where every
+relative-distance test is at its weakest; it costs, for a 10\,km array,
+platforms at about 5\,km of altitude.
+
+\emph{Line-of-sight placement.} The second experiment approximates the
+GNSS-WASP geometry: one transmitter per satellite visible at the start
+of the mission, placed on its line of sight from the array centre at
+slant range $R_{\mathrm{los}}$ (altitude $R_{\mathrm{los}}\sin\mathrm{el}_s$,
+up to 9\,km for $R_{\mathrm{los}}=10$\,km). Because such a constellation
+is only on the lines of sight for a swarm near the array centre, this
+experiment uses a loitering mission confined within 700\,m of the centre
+(\texttt{traj\_scale}$=0.1$), and compares with the ground circle on the
+same mission (Table~\ref{tab:los}). The residual decreases from 13\,\%
+of the baseline for the ground array to 10, 9 and 8\,\% at
+$R_{\mathrm{los}}=2$, 5 and 10\,km---not to zero, because the
+transmitters are fixed while the satellites move and new ones rise
+during the 20-minute mission---and the two-sided majority test drops
+from $\PD=0.40$ (AUC $0.96$) to $0.15$, $0.09$ and $0.07$ (AUC $0.71$,
+$0.58$, $0.50$), with the worst-pair test at $0.02$. At slant ranges of
+5\,km and beyond the WASP-like constellation is thus undetectable by
+every relative-distance test at this spacing with standard
+positioning, consistent with the hardware result
+of~\cite{tibaldo2025gnsswasp}; the price is a constellation of airborne
+platforms at several kilometres of altitude, against a ground array
+that is detected by the aggregate two-sided test.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{fig_sweep}
+\caption{Transmitter altitude sweep (24-transmitter, 10\,km array,
+$g=10$\,m). Top: distortion $E$ from the model~\eqref{eq:residual} and
+measured on a noiseless mission, and signed dilation
+(noiseless mission; Monte Carlo pool of 10 missions with noise, $H_0$
+bias removed). Bottom: $\PD$ at $\PFA=10^{-2}$ of the collapse majority
+test, the worst-pair tests and the two-sided majority test (bands:
+95\,\% CI). The attacker's optimum is the zero crossing of the signed
+dilation, not the highest altitude.}
+\label{fig:sweep}
+\end{figure}
+
+\begin{table}[!t]
+\caption{Loitering mission ($g=10$\,m, 10 missions): ground circle vs.\
+line-of-sight (WASP-like) placement at slant range $R_{\mathrm{los}}$.
+$\PD$ at $\PFA=10^{-2}$ (AUC in parentheses).}
+\label{tab:los}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{l cccc}
+\toprule
+Placement & med.\ $r_{ij}$ & Jansen maj. & Worst-pair & 2-sided maj. \\
+\midrule
+Ground circle, 10\,km & 1.130 & 0.00 (0.04) & 0.07 (0.59) & 0.40 (0.96) \\
+LOS, $R_{\mathrm{los}}=2$\,km  & 1.055 & 0.15 (0.40) & 0.02 (0.54) & 0.15 (0.71) \\
+LOS, $R_{\mathrm{los}}=5$\,km  & 1.041 & 0.11 (0.48) & 0.02 (0.52) & 0.09 (0.58) \\
+LOS, $R_{\mathrm{los}}=10$\,km & 1.032 & 0.12 (0.55) & 0.02 (0.51) & 0.07 (0.50) \\
+\midrule
+$H_0$ (no attack) & 1.035 & \multicolumn{3}{c}{$\PFA=0.01$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 % =========================================================================
 \section{Discussion and Limitations}
 \label{sec:discussion}
@@ -767,16 +902,21 @@ practical consequence for the defender is a change of signature, not a
 loss of observability: collapse tests should be replaced, or at least
 complemented, by two-sided aggregate tests on the distance ratios, which
 detect the dilation reliably at 15--20\,m and in a majority of epochs at
-5--10\,m with standard positioning. Temporal integration helps the
-worst-pair test but does not make it competitive with the aggregate
-statistic. Lower-noise fixes (RTK) or wider formations raise all
+5--10\,m with standard positioning, and reliably from 12--15\,m with one
+minute of integration. Temporal integration helps the worst-pair test
+but does not make it competitive with the aggregate statistic. Lower-noise fixes (RTK) or wider formations raise all
 two-sided detectors, since the dilation is scale-free (22\,\% of the
 baseline) while the noise floor decays as $1/g$: in supplementary runs
 at 50 and 100\,m spacing (20 missions each) the two-sided majority test
 reaches $\PD=1.00$, the worst-pair test $0.56$ and $0.65$ (AUC $0.86$
-and $0.96$), and the collapse detectors remain at zero. Raising the transmitters would reduce the
-dilation according to~\eqref{eq:residual}; we leave that trade-off, and
-the design of a spoofer that compensates it, to future work.
+and $0.96$), and the collapse detectors remain at zero. Raising the
+transmitters reduces and then reverses the dilation
+(Section~\ref{sec:sweep}); a defender should therefore test the
+distance ratios on \emph{both} sides, which the two-sided majority
+statistic does by construction, and should expect its weakest point at
+the attacker's crossing altitude. The design of a spoofer that
+compensates the residual with per-satellite altitudes is left to future
+work.
 
 \subsubsection*{Scope of the result}
 The evaluation covers detectors that are functions of relative
@@ -806,7 +946,14 @@ invisible to any relative-only detector. Our attacker is deliberately
 more constrained, and the quantity we measure and model is what
 separates it from those ideal attacks: a dilation large enough to be
 detected by the right test, and the reason why detectors tuned to the
-single-transmitter signature miss it.
+single-transmitter signature miss it. Section~\ref{sec:sweep} connects
+the two regimes explicitly: raising a common-altitude array does not
+remove the residual but changes its sign, so the attacker's best
+altitude is the zero crossing (about 5\,km for a 10\,km array), and only
+a constellation on the lines of sight at several kilometres of slant
+range reaches the undetectable regime of~\cite{tibaldo2025gnsswasp};
+even then the residual does not vanish over a 20-minute mission because
+the satellites move while the transmitters do not.
 
 \subsubsection*{Deployment, steady state, and other simplifications}
 The result assumes an array that encloses the swarm's operating area
@@ -838,11 +985,16 @@ dilation lies in the tail that the collapse detectors of Jansen et al.\
 never test ($\PD\le0.011$, AUC down to $0.001$) and is largely masked by
 GNSS noise for the worst-pair GNSS-vs-UWB check ($\PD\le0.26$), but a
 two-sided test on the median distance ratio detects it at every spacing
-($\PD$ from $0.38$ to $0.98$). Against distributed ground spoofers,
+($\PD$ from $0.38$ to $0.98$). Raising the transmitters does not remove
+the residual but reverses it: the attacker's best altitude is the zero
+crossing of the dilation (about 5\,km for a 10\,km array), where every
+relative-distance test is at its weakest, and only a constellation on
+the satellites' lines of sight at several kilometres of slant range
+becomes undetectable. Against distributed ground spoofers,
 relative-distance detection should therefore test for dilation rather
-than collapse, and be complemented by direction-of-arrival or
-absolute-reference information for the attackers that can forge the
-elevations too.
+than collapse---on both sides---and be complemented by
+direction-of-arrival or absolute-reference information for the airborne
+attackers that can forge the elevations too.
 
 % =========================================================================
 \section*{Acknowledgments}
