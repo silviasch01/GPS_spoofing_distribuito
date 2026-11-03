@@ -24,6 +24,10 @@ function out = GPS_mobility_v4_prove(opts)
 	% WP(:,1) = WP(:,1)*86400/1200;
 	% Ts = Ts*86400/1200;
 	WP(:,1) = WP(:,1)+86400*log(1/rand);
+	% optional scaling of the horizontal excursion of the mission about its
+	% start point (traj_scale = 1: nominal ~7 km; 0.1: loitering within ~700 m)
+	traj_scale = getopt(opts,'traj_scale',1);
+	WP(:,2:3) = WP(1,2:3) + traj_scale*(WP(:,2:3)-WP(1,2:3));
 
 	% returns the list of [time, lat, lon, alt] for every point along the path,
 	% excluding the last
@@ -132,7 +136,7 @@ function out = GPS_mobility_v4_prove(opts)
 		max_spoofed_sats = getopt(opts,'max_spoofed_sats',inf);
 		[measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac] = spoofing_sim(...
 			Pt_spoof,Gt_spoof,spoofer_coords,spoof_for_sat,coords,coords_grid,elevation,...
-			delay,delay_spoof,R_spoofers,max_spoofed_sats);
+			delay,delay_spoof,R_spoofers,max_spoofed_sats,getopt(opts,'channel','alhourani'));
 	end
 
 	% pseudorange noise (std in meters), independent for every measurement
@@ -442,7 +446,16 @@ function [measured_delay,delta_t] = spoofing_sim_freespace(Pt_spoof,Gt_spoof,spo
 end
 
 function [measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
-		spoof_for_sat,coords,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats)
+		spoof_for_sat,coords,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats,channel)
+	% channel: 'alhourani' (default) ground-to-UAV path loss, valid for
+	%          transmitters below/near the receivers' altitude (theta in
+	%          [-2,10] deg); 'freespace' line-of-sight loss over the 3D slant
+	%          distance, used for elevated (airborne) transmitters. The
+	%          channel only decides capture; the replayed delays and hence
+	%          the formation distortion do not depend on it.
+	if nargin < 12
+		channel = 'alhourani';
+	end
 	% Physical distributed attack. Each visible satellite is replayed by its
 	% assigned ground spoofer. The spoofer calibrates the replayed code phase
 	% so that, at the TRUE swarm centre, the measured delay equals the decoy
@@ -546,9 +559,13 @@ function [measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac]
 					end
 					theta_deg = min(rad2deg(theta_rad),10);
 
-					terrestrial_PL_db = 10*alpha *log10(d_horiz);
-					excess_PL_db = A*(theta_deg - theta_0)*exp(-(theta_deg - theta_0)/B)+eta_0;
-					PL_db = terrestrial_PL_db + excess_PL_db;
+					if strcmpi(channel,'freespace')
+						PL_db = 20*log10(4*pi*fc*d3d_rx/c);
+					else
+						terrestrial_PL_db = 10*alpha *log10(d_horiz);
+						excess_PL_db = A*(theta_deg - theta_0)*exp(-(theta_deg - theta_0)/B)+eta_0;
+						PL_db = terrestrial_PL_db + excess_PL_db;
+					end
 					PL_linear = 10^(PL_db/10);
 
 					Pr_spoofer = Pt_spoof*Gt_spoof*Gr/PL_linear;

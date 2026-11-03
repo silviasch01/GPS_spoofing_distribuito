@@ -769,9 +769,12 @@ complemented, by two-sided aggregate tests on the distance ratios, which
 detect the dilation reliably at 15--20\,m and in a majority of epochs at
 5--10\,m with standard positioning. Temporal integration helps the
 worst-pair test but does not make it competitive with the aggregate
-statistic; lower-noise fixes (RTK) or wider formations would raise all
-two-sided detectors, since the dilation is scale-free while the noise
-floor decays as $1/g$. Raising the transmitters would reduce the
+statistic. Lower-noise fixes (RTK) or wider formations raise all
+two-sided detectors, since the dilation is scale-free (22\,\% of the
+baseline) while the noise floor decays as $1/g$: in supplementary runs
+at 50 and 100\,m spacing (20 missions each) the two-sided majority test
+reaches $\PD=1.00$, the worst-pair test $0.56$ and $0.65$ (AUC $0.86$
+and $0.96$), and the collapse detectors remain at zero. Raising the transmitters would reduce the
 dilation according to~\eqref{eq:residual}; we leave that trade-off, and
 the design of a spoofer that compensates it, to future work.
 
