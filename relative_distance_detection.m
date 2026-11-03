@@ -16,7 +16,11 @@
 %        maximal   : f = max_ij r_ij
 %        majority  : f = median_ij r_ij   (>=half of the pairs below lambda,
 %                    i.e. the paper's normalized majority voting)
-%   Formation CONSISTENCY test (two-sided), same family. Alarm when the
+%   Two-sided tests, same family: (a) worst-pair, T = max_ij |r_ij - 1|,
+%     and (b) two-sided majority, T = |median_ij r_ij - 1| (an aggregate
+%     statistic, more powerful against a systematic bias such as a
+%     dilation of the formation). Alarm when T > lambda.
+%   Formation CONSISTENCY test (worst-pair form). Alarm when the
 %     distances deviate (either way) from the measured formation:
 %        T = max_ij |r_ij - 1| > lambda.
 %     "Worst pair" form of the GNSS-vs-ranging check used for UAV swarms by
@@ -75,10 +79,10 @@ N_spoofers = 24;
 
 scen(1) = struct('name','H0',    'opts',struct('Pt_spoof',0));
 scen(2) = struct('name','power', 'opts',struct('max_spoofed_sats',inf));
-det_names = {'Jansen min','Jansen max','Jansen majority','Formation consistency'};
-% collapse detectors alarm for SMALL statistics (f < lambda), the consistency
-% detector for LARGE statistics (T > lambda)
-alarm_small = [true true true false];
+det_names = {'Jansen min','Jansen max','Jansen majority','Worst-pair (two-sided)','Two-sided majority'};
+% collapse detectors alarm for SMALL statistics (f < lambda), the two-sided
+% detectors for LARGE statistics (T > lambda)
+alarm_small = [true true true false false];
 
 Nscen = numel(scen);
 Ndet = numel(det_names);
@@ -162,7 +166,7 @@ fprintf('\nFraction of spoofer links with elevation angle > 10 deg (Al-Hourani f
 colors = lines(4);
 figure(1)
 for k = 1:Ndet
-	subplot(2,2,k)
+	subplot(2,3,k)
 	lo = squeeze(Pd_ci(:,k,1)); hi = squeeze(Pd_ci(:,k,2));
 	fill([grid_steps fliplr(grid_steps)],[lo' fliplr(hi')],colors(2,:),'FaceAlpha',0.2,'EdgeColor','none');
 	hold on
@@ -179,7 +183,7 @@ g = find(grid_steps==roc_step,1);
 if ~isempty(g)
 	figure(2)
 	for k = 1:Ndet
-		subplot(2,2,k)
+		subplot(2,3,k)
 		t0 = sort(T{g,1}(~isnan(T{g,1}(:,k)),k));
 		thr_c = [-inf;t0;inf];
 		tk = T{g,2}(:,k); tk = tk(~isnan(tk));
@@ -210,13 +214,13 @@ title('Distortion of the relative distances')
 
 % ======================================================== local functions
 
-% Jansen collapse variants + formation consistency test, per epoch.
-% Columns of Tr: [min(r), max(r), median(r), max|r-1|].
+% Jansen collapse variants + two-sided tests, per epoch.
+% Columns of Tr: [min(r), max(r), median(r), max|r-1|, |median(r)-1|].
 function [Tr,Er] = distance_tests(out,sigma_range)
 	Nt = size(out.coords_est,1);
 	Nusers = size(out.coords_est,2)/3;
 	[I,J] = find(triu(true(Nusers),1));
-	Tr = zeros(Nt,4);
+	Tr = zeros(Nt,5);
 	Er = zeros(Nt,1);
 	for t = 1:Nt
 		p_true = coords_to_ecef(out.coords_grid(t,2:end));
@@ -229,6 +233,7 @@ function [Tr,Er] = distance_tests(out,sigma_range)
 		Tr(t,2) = max(r);
 		Tr(t,3) = median(r);
 		Tr(t,4) = max(abs(r-1));
+		Tr(t,5) = abs(median(r)-1);   % two-sided majority (aggregate) test
 		Er(t) = median(abs(d_gnss-d0_clean)./d0_clean);
 	end
 end
