@@ -70,7 +70,26 @@ function out = GPS_mobility_v4_prove(opts)
 	else
 		R_spoofers = 0;
 	end
-	spoofer_coords = points_on_circle(N_spoofers,center_coords,R_spoofers);
+	% transmitter deployment
+	%  'circle' (default): N_spoofers transmitters on a circle of radius
+	%           R_spoofers around center_coords, all at altitude spoofer_alt
+	%           (default: the altitude of center_coords); sweeping spoofer_alt
+	%           raises the transmitter elevation seen from the swarm
+	%  'los'   : one transmitter per satellite visible from center_coords at
+	%           the first epoch, placed ON the satellite's line of sight at
+	%           slant range R_los (altitude = R_los*sin(el) above the centre):
+	%           the finite-range GNSS-WASP-like placement
+	placement = getopt(opts,'placement','circle');
+	spoofer_alt = getopt(opts,'spoofer_alt',center_coords(3));
+	if strcmpi(placement,'los')
+		R_los = getopt(opts,'R_los',2000);
+		vis0 = find(elevation(1,:,u_center) > 0);
+		spoofer_coords = points_on_los(center_coords, ...
+			azimuth(1,vis0,u_center), elevation(1,vis0,u_center), R_los);
+		N_spoofers = numel(vis0);
+	else
+		spoofer_coords = points_on_circle(N_spoofers,[center_coords(1:2),spoofer_alt],R_spoofers);
+	end
 
 	% satellite -> spoofer routing: every visible satellite is replayed by the
 	% spoofer whose azimuth is closest to the satellite's. The transmitters
@@ -794,6 +813,26 @@ function spoof_for_sat = spoofer_assign(center_coords,spoofer_coords,azimuth_spo
 			[~,ind]=min(abs(mod(azimuth_spoof(i,sat)-azimuth_spoof_local+pi,2*pi)-pi));
 			spoof_for_sat(i,sat) = ind;
 		end
+	end
+end
+
+% one transmitter per (azimuth, elevation) pair, on that line of sight from
+% center_coords at slant range R_los: horizontal offset R_los*cos(el) along
+% the azimuth (atan2(N,E) convention, as in gps_trace), altitude raised by
+% R_los*sin(el)
+function spoofer_coords = points_on_los(center_coords,az,el,R_los)
+	R_Earth = physconst('EarthRadius');
+	u0 = coords_to_unitv(center_coords);
+	uN = [0; 0; 1];
+	eN_0 = uN-(u0'*uN)*u0;
+	uN_0 = eN_0/norm(eN_0);
+	uE = cross(uN_0,u0);
+	N = numel(az);
+	spoofer_coords = zeros(1,3*N);
+	for i = 1:N
+		alpha = R_los*cos(el(i))/R_Earth;
+		u = cos(alpha)*u0 + sin(alpha)*(uE*cos(az(i)) + uN_0*sin(az(i)));
+		spoofer_coords(3*(i-1)+(1:3)) = [unitv_to_coords(u), center_coords(3)+R_los*sin(el(i))];
 	end
 end
 
