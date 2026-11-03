@@ -41,40 +41,29 @@ and the Two-Sided Test That Detects It}
 
 % =========================================================================
 \begin{abstract}
-Multi-receiver spoofing detection rests on a geometric fact: a
+Multi-receiver spoofing detection relies on a geometric fact: a
 single-transmitter spoofer forces every receiver of a formation onto the
-same position, so the mutual distances implied by the GNSS fixes
-collapse. We ask what a \emph{physical distributed} spoofer does
-instead---24 fixed ground transmitters around the operating area of a
-25-UAV swarm, each replaying the satellite closest to it in azimuth,
-with capture decided by received power through an elevation-dependent
-ground-to-UAV channel and the replayed code phase propagating over the
-true three-dimensional path to every drone---and what the
-relative-distance detectors see. Simulating the attack transmitter by
-transmitter over the 5--20\,m inter-UAV spacing of outdoor GPS-based
-formation flight, with 20 Monte Carlo missions per configuration, we
-find that a ground array cannot preserve the formation: because its
-transmitters cannot reproduce the satellites' elevation, the computed
-formation is \emph{dilated} by about 23\,\% of the baseline, a value
-predicted to within a few percent, epoch by epoch, by a first-order
-least-squares model of the residual. This dilation is invisible to the
-collapse detectors of Jansen et al.\ (ACSAC~2016), which test the wrong
-tail ($\PD\le0.011$ at $\PFA=10^{-2}$, ROC area down to $0.001$), and
-is largely masked by GNSS noise for the worst-pair GNSS-vs-UWB check
-used in swarm detectors ($\PD=0.03$--$0.26$); but a two-sided test on
-the median distance ratio detects it at every spacing
-($\PD=0.38$ at 5\,m to $0.98$ at 20\,m, AUC $0.83$--$0.999$). Raising
-the transmitters trades dilation for contraction: the signed dilation
-crosses zero at a transmitter elevation of about $30^\circ$ (5\,km of
-altitude for a 10\,km array), where every relative-distance test is at
-its weakest ($\PD\le0.22$), while a WASP-like constellation on the
-satellites' lines of sight at slant ranges of 5\,km and beyond is
-undetectable by all of them ($\PD\le0.09$). The result replaces the
-collapse signature with a dilation signature as the quantity
-relative-distance detectors should test for against distributed ground
-spoofers, quantifies the altitude an attacker must reach to erase it,
-and delimits the scope of relative-distance detection with respect to
-direction-of-arrival and absolute-reference defenses.
+same position, so the distances implied by the GNSS fixes collapse. We
+simulate, transmitter by transmitter, a \emph{physical distributed}
+spoofer---24 fixed ground transmitters around the operating area of a
+25-UAV swarm, one impersonated satellite each, with power-based capture
+through an elevation-dependent ground-to-UAV channel---over the 5--20\,m
+spacing of GPS-based formation flight, 20 Monte Carlo missions per
+configuration. A ground array cannot preserve the formation: unable to
+reproduce the satellites' elevation, it \emph{dilates} the computed
+formation by about 23\,\% of the baseline, as predicted by a validated
+first-order model. The dilation is invisible to the collapse detectors
+of Jansen et al.\ (ACSAC~2016), which test the wrong tail
+($\PD\le0.011$ at $\PFA=10^{-2}$), and is largely masked by noise for
+the worst-pair GNSS-vs-UWB check ($\PD\le0.26$); a two-sided test on the
+median distance ratio detects it reliably from 15\,m and in a majority
+of epochs from 8\,m. Raising the transmitters turns the dilation into a
+contraction: at the zero crossing every relative-distance test is at
+its weakest, and only a WASP-like constellation on the satellites'
+lines of sight at several kilometres of slant range becomes
+undetectable. The dilation signature, not the collapse, is what
+relative-distance detectors should test for against ground spoofers,
+and the altitude needed to erase it is the attacker's cost.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -232,7 +221,12 @@ distances to within a metre, explicitly bypassing
 multi-receiver~\cite{jansen2016multireceiver} and
 sensor-fusion~\cite{sathaye2022semperfi} countermeasures; its authors
 note that the residual bias of a real transmitter constellation
-"cannot be eliminated unless they are placed in orbit". Park and
+"cannot be eliminated unless they are placed in orbit". GNSS-WASP also discusses a
+WASP-aware countermeasure that accumulates the worst-pair residual over
+time (CUSUM), appropriate for a residual of variable sign; the detector
+we propose in Section~\ref{sec:detection} instead aggregates
+\emph{spatially} over the pairs, which is possible because the residual
+of a ground array has a coherent sign (a dilation). Park and
 Yoo~\cite{park2026rigidshift} state the translation-invariance of
 relative-only detectors as a formal proposition, rooted in the gauge
 freedom of anchor-free network
@@ -334,7 +328,9 @@ The attacker's goal is to displace the whole swarm's perceived position
 onto a decoy point about 5.7~km from the flight path, while the swarm
 believes it is following its mission plan. The attack is simulated
 transmitter by transmitter; nothing is assumed about per-victim signal
-shaping.
+shaping. As in~\cite{tibaldo2025gnsswasp}, the spoofer replays the
+authentic navigation message, so the receivers use the true satellite
+ephemerides and only the code phases are forged.
 
 \subsection{Transmitter geometry and per-epoch routing}
 $N_{\mathrm{sp}}=24$ fixed ground transmitters are placed on a circle of
@@ -430,17 +426,17 @@ linear map $\mathbf{M}$ from $\boldsymbol{\delta}_u$ to the position
 error (including its vertical component) and hence the relative length
 change of every pair of the grid. Figure~\ref{fig:validation} compares
 this prediction with the measured distortion, epoch by epoch, on a
-noiseless attacked mission at $g=20$\,m: the model reproduces the
-measured dilation epoch by epoch through its variations with the
-satellite geometry (correlation $1.00$, largest deviation $0.4$
-percentage points), with a median predicted value of $24.4$\,\% against
-a measured $24.5$\,\%. Two details of the model matter: the vertical
-component of the position error, an altitude tilt proportional to
-$\boldsymbol{\delta}_u$, accounts for a quarter of the three-dimensional
-distortion (the horizontal part alone predicts $18.8$\,\%), and the
-clock and vertical degrees of freedom of the solver absorb part of the
-pseudorange error, which is why the simple formula~\eqref{eq:dilation}
-overestimates ($34.5$\,\%). The variation of the dilation with the
+noiseless attacked mission at $g=20$\,m. The agreement (median
+predicted $24.4$\,\% against measured $24.5$\,\%, correlation $1.00$,
+largest deviation $0.4$ percentage points) is essentially a check that
+the first-order linearization holds at these baselines; its value lies
+in what the comparison of the three predictions shows: the simple
+formula~\eqref{eq:dilation} gives $34.5$\,\%, the horizontal part of the
+linear model $18.8$\,\%, the full model $24.4$\,\%. The clock and
+vertical degrees of freedom of the solver absorb part of the pseudorange
+error (hence $34.5\to24.4$), and the vertical component of the position
+error---an altitude tilt proportional to $\boldsymbol{\delta}_u$---adds
+a quarter of the three-dimensional distortion (hence $18.8\to24.4$). The variation of the dilation with the
 elevations of the satellites in view is also what produces the
 mission-to-mission spread of Fig.~\ref{fig:distortion}.
 
@@ -523,14 +519,17 @@ T_{\mathrm{wp}} = \max_{i<j}\,\bigl|\,r_{ij}-1\,\bigr|,
 \label{eq:cons}
 \end{equation}
 is the form used by the GNSS-vs-UWB check of~\cite{mykytyn2023uwb}
-($|d_{\mathrm{GPS}}-d_{\mathrm{UWB}}|>d_{\mathrm{thr}}$ on any pair) and
-by per-measurement double-difference tests~\cite{stenberg2022multiple}
-when their outcomes are combined by a single exceedance. Because it is
-governed by the noisiest pair, it is sensitive to outliers and weak
-against a bias shared by all pairs. Against such a bias an
-\emph{aggregate} statistic is more powerful---the $\chi^2$ sum
-of~\cite{stenberg2022multiple}, or simply the median---and we therefore
-also evaluate the \emph{two-sided majority} test
+($|d_{\mathrm{GPS}}-d_{\mathrm{UWB}}|>d_{\mathrm{thr}}$ on any pair) and,
+with temporal accumulation (CUSUM), by the WASP-aware countermeasure
+discussed in~\cite{tibaldo2025gnsswasp}, which must cope with a residual
+whose sign varies from pair to pair. Because it is governed by the
+noisiest pair, it is sensitive to outliers and weak against a bias
+shared by all pairs. Against such a bias an \emph{aggregate} statistic
+is more powerful---the $\chi^2$ sum over double differences
+of~\cite{stenberg2022multiple}, or simply the median---and the
+sign-coherent dilation of Section~\ref{sec:residual} is exactly the
+case in which spatial aggregation pays: we therefore also evaluate the
+\emph{two-sided majority} test
 \begin{equation}
 T_{\mathrm{maj}} = \bigl|\operatorname*{med}_{i<j} r_{ij}-1\bigr|,
 \qquad \text{alarm if } T_{\mathrm{maj}}>\lambda ,
@@ -573,8 +572,11 @@ Table~\ref{tab:params} summarizes the parameters. We sweep the formation
 spacing over $g\in\{5,8,10,12,15,20\}$\,m. This range is the one of
 outdoor formation flight on GPS: experimental leader--follower formations
 of quadcopters are flown at 5\,m spacing, with separation errors of
-0.4\,m~\cite{cheok2022formation} to 1.4--1.9\,m RMSE even with RTK
-corrections~\cite{grundler2025mesh}; a design method that derives the
+0.4\,m~\cite{cheok2022formation} and of 1.4--1.9\,m RMSE in a
+three-quadcopter experiment with RTK corrections;\footnote{T.~Grundler
+and J.~Ryan, ``Mesh-networked UAV swarm: experimental leader--follower
+formation control,'' senior project, Cal Poly, 2025.} a design method
+that derives the
 minimum safe spacing from the combined navigation and control error
 yields spacings of metres for GNSS-based
 navigation~\cite{guo2025separation}; the multi-receiver prototype
@@ -626,7 +628,8 @@ ground transmitters (triangles), each replaying one satellite; the
 estimated centre (square) is displaced onto the decoy (star). Inset
 (noiseless run, same scale): the estimated grid (red squares) against
 the true grid translated by the same offset (black circles, dashed
-outline)---the formation is dilated by about 20\,\%, not preserved.}
+outline)---the formation is dilated (by 18\,\% at this epoch), not
+preserved.}
 \label{fig:scenario}
 \end{figure}
 
@@ -757,9 +760,10 @@ pair over the whole formation-flight regime; averaging it over a
 one-minute window raises $\PD$ only to $0.12$--$0.38$
 (Table~\ref{tab:window}), still far from reliable detection.
 
-Third, \textbf{the two-sided majority test detects the dilation at every
-spacing}: $\PD=0.38$ at 5\,m, $0.63$ at 10\,m and $0.98$ at 20\,m, with
-AUC from $0.83$ to $0.999$. The aggregate statistic~\eqref{eq:maj2}
+Third, \textbf{the two-sided majority test sees the dilation}: it
+detects it reliably from 15\,m ($\PD=0.85$ at 15\,m, $0.98$ at 20\,m),
+in a majority of epochs at 8--12\,m ($0.57$--$0.71$) and in more than a
+third of the epochs at 5\,m ($0.38$), with AUC from $0.83$ to $0.999$. The aggregate statistic~\eqref{eq:maj2}
 averages the noise over all pairs and retains the common bias, which is
 exactly the signature left by a ground array. Its ROC at 10\,m
 (Fig.~\ref{fig:roc}) is the mirror image of the collapse majority
@@ -905,11 +909,13 @@ detect the dilation reliably at 15--20\,m and in a majority of epochs at
 5--10\,m with standard positioning, and reliably from 12--15\,m with one
 minute of integration. Temporal integration helps the worst-pair test
 but does not make it competitive with the aggregate statistic. Lower-noise fixes (RTK) or wider formations raise all
-two-sided detectors, since the dilation is scale-free (22\,\% of the
-baseline) while the noise floor decays as $1/g$: in supplementary runs
-at 50 and 100\,m spacing (20 missions each) the two-sided majority test
-reaches $\PD=1.00$, the worst-pair test $0.56$ and $0.65$ (AUC $0.86$
-and $0.96$), and the collapse detectors remain at zero. Raising the
+two-sided detectors, since the dilation is scale-free (about 23\,\% of
+the baseline) while the noise floor decays as $1/g$: in supplementary runs
+at 50 and 100\,m spacing (20 missions each, same attack model and
+seeds, reproduced bit for bit by the released code) the two-sided
+majority test reaches $\PD=1.00$, the worst-pair test $0.56$ and
+$0.65$ (AUC $0.86$ and $0.96$), and the collapse detectors remain at
+zero. Raising the
 transmitters reduces and then reverses the dilation
 (Section~\ref{sec:sweep}); a defender should therefore test the
 distance ratios on \emph{both} sides, which the two-sided majority
@@ -984,8 +990,9 @@ baseline, a value reproduced epoch by epoch by a first-order model. The
 dilation lies in the tail that the collapse detectors of Jansen et al.\
 never test ($\PD\le0.011$, AUC down to $0.001$) and is largely masked by
 GNSS noise for the worst-pair GNSS-vs-UWB check ($\PD\le0.26$), but a
-two-sided test on the median distance ratio detects it at every spacing
-($\PD$ from $0.38$ to $0.98$). Raising the transmitters does not remove
+two-sided test on the median distance ratio detects it reliably from
+15\,m and in a majority of epochs from 8\,m ($\PD$ from $0.38$ at 5\,m
+to $0.98$ at 20\,m). Raising the transmitters does not remove
 the residual but reverses it: the attacker's best altitude is the zero
 crossing of the dilation (about 5\,km for a 10\,km array), where every
 relative-distance test is at its weakest, and only a constellation on
