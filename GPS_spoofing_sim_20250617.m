@@ -24,6 +24,10 @@ function out = GPS_mobility_v4_prove(opts)
 	% WP(:,1) = WP(:,1)*86400/1200;
 	% Ts = Ts*86400/1200;
 	WP(:,1) = WP(:,1)+86400*log(1/rand);
+	% optional scaling of the horizontal excursion of the mission about its
+	% start point (traj_scale = 1: nominal ~7 km; 0.1: loitering within ~700 m)
+	traj_scale = getopt(opts,'traj_scale',1);
+	WP(:,2:3) = WP(1,2:3) + traj_scale*(WP(:,2:3)-WP(1,2:3));
 
 	% returns the list of [time, lat, lon, alt] for every point along the path,
 	% excluding the last
@@ -70,7 +74,26 @@ function out = GPS_mobility_v4_prove(opts)
 	else
 		R_spoofers = 0;
 	end
-	spoofer_coords = points_on_circle(N_spoofers,center_coords,R_spoofers);
+	% transmitter deployment
+	%  'circle' (default): N_spoofers transmitters on a circle of radius
+	%           R_spoofers around center_coords, all at altitude spoofer_alt
+	%           (default: the altitude of center_coords); sweeping spoofer_alt
+	%           raises the transmitter elevation seen from the swarm
+	%  'los'   : one transmitter per satellite visible from center_coords at
+	%           the first epoch, placed ON the satellite's line of sight at
+	%           slant range R_los (altitude = R_los*sin(el) above the centre):
+	%           the finite-range GNSS-WASP-like placement
+	placement = getopt(opts,'placement','circle');
+	spoofer_alt = getopt(opts,'spoofer_alt',center_coords(3));
+	if strcmpi(placement,'los')
+		R_los = getopt(opts,'R_los',2000);
+		vis0 = find(elevation(1,:,u_center) > 0);
+		spoofer_coords = points_on_los(center_coords, ...
+			azimuth(1,vis0,u_center), elevation(1,vis0,u_center), R_los);
+		N_spoofers = numel(vis0);
+	else
+		spoofer_coords = points_on_circle(N_spoofers,[center_coords(1:2),spoofer_alt],R_spoofers);
+	end
 
 	% satellite -> spoofer routing: every visible satellite is replayed by the
 	% spoofer whose azimuth is closest to the satellite's. The transmitters
@@ -113,7 +136,7 @@ function out = GPS_mobility_v4_prove(opts)
 		max_spoofed_sats = getopt(opts,'max_spoofed_sats',inf);
 		[measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac] = spoofing_sim(...
 			Pt_spoof,Gt_spoof,spoofer_coords,spoof_for_sat,coords,coords_grid,elevation,...
-			delay,delay_spoof,R_spoofers,max_spoofed_sats);
+			delay,delay_spoof,R_spoofers,max_spoofed_sats,getopt(opts,'channel','alhourani'));
 	end
 
 	% pseudorange noise (std in meters), independent for every measurement
@@ -423,7 +446,16 @@ function [measured_delay,delta_t] = spoofing_sim_freespace(Pt_spoof,Gt_spoof,spo
 end
 
 function [measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac] = spoofing_sim(Pt_spoof,Gt_spoof,spoofer_coords,...
-		spoof_for_sat,coords,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats)
+		spoof_for_sat,coords,coords_grid,elevation,delay,delay_spoof,R_spoofers,max_spoofed_sats,channel)
+	% channel: 'alhourani' (default) ground-to-UAV path loss, valid for
+	%          transmitters below/near the receivers' altitude (theta in
+	%          [-2,10] deg); 'freespace' line-of-sight loss over the 3D slant
+	%          distance, used for elevated (airborne) transmitters. The
+	%          channel only decides capture; the replayed delays and hence
+	%          the formation distortion do not depend on it.
+	if nargin < 12
+		channel = 'alhourani';
+	end
 	% Physical distributed attack. Each visible satellite is replayed by its
 	% assigned ground spoofer. The spoofer calibrates the replayed code phase
 	% so that, at the TRUE swarm centre, the measured delay equals the decoy
@@ -527,9 +559,13 @@ function [measured_delay,delta_t,is_spoofed,Pr_sat_dBW,Pr_sp_dBW,theta_sat_frac]
 					end
 					theta_deg = min(rad2deg(theta_rad),10);
 
-					terrestrial_PL_db = 10*alpha *log10(d_horiz);
-					excess_PL_db = A*(theta_deg - theta_0)*exp(-(theta_deg - theta_0)/B)+eta_0;
-					PL_db = terrestrial_PL_db + excess_PL_db;
+					if strcmpi(channel,'freespace')
+						PL_db = 20*log10(4*pi*fc*d3d_rx/c);
+					else
+						terrestrial_PL_db = 10*alpha *log10(d_horiz);
+						excess_PL_db = A*(theta_deg - theta_0)*exp(-(theta_deg - theta_0)/B)+eta_0;
+						PL_db = terrestrial_PL_db + excess_PL_db;
+					end
 					PL_linear = 10^(PL_db/10);
 
 					Pr_spoofer = Pt_spoof*Gt_spoof*Gr/PL_linear;
@@ -794,6 +830,26 @@ function spoof_for_sat = spoofer_assign(center_coords,spoofer_coords,azimuth_spo
 			[~,ind]=min(abs(mod(azimuth_spoof(i,sat)-azimuth_spoof_local+pi,2*pi)-pi));
 			spoof_for_sat(i,sat) = ind;
 		end
+	end
+end
+
+% one transmitter per (azimuth, elevation) pair, on that line of sight from
+% center_coords at slant range R_los: horizontal offset R_los*cos(el) along
+% the azimuth (atan2(N,E) convention, as in gps_trace), altitude raised by
+% R_los*sin(el)
+function spoofer_coords = points_on_los(center_coords,az,el,R_los)
+	R_Earth = physconst('EarthRadius');
+	u0 = coords_to_unitv(center_coords);
+	uN = [0; 0; 1];
+	eN_0 = uN-(u0'*uN)*u0;
+	uN_0 = eN_0/norm(eN_0);
+	uE = cross(uN_0,u0);
+	N = numel(az);
+	spoofer_coords = zeros(1,3*N);
+	for i = 1:N
+		alpha = R_los*cos(el(i))/R_Earth;
+		u = cos(alpha)*u0 + sin(alpha)*(uE*cos(az(i)) + uN_0*sin(az(i)));
+		spoofer_coords(3*(i-1)+(1:3)) = [unitv_to_coords(u), center_coords(3)+R_los*sin(el(i))];
 	end
 end
 
