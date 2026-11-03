@@ -1,5 +1,5 @@
 1;
-% run from the repository root (needs physconst, e.g. Phased Array / Antenna Toolbox)
+% run from the repository root
 args=argv(); G=str2double(args{1}); NR=str2double(args{2}); ALT=str2double(args{3}); PL=args{4}; RL=str2double(args{5}); CH=args{6}; TS=str2double(args{7}); PT=str2double(args{8}); TAG=args{9};
 % ======================================================== local functions
 
@@ -192,7 +192,7 @@ for g = 1:Ngs
 			opts.sigma_pr = sigma_pr;
 			opts.R_spoofers = R_spoofers;
 			opts.N_spoofers = N_spoofers;
-			opts.spoofer_alt = ALT; opts.placement = PL; opts.R_los = RL; opts.channel = CH; opts.traj_scale = TS; if PT>0, opts.Pt_spoof = PT; end
+			opts.spoofer_alt = ALT; opts.placement = PL; opts.R_los = RL; opts.channel = CH; opts.traj_scale = TS; if PT>0 && s == 2, opts.Pt_spoof = PT; end   % attack scenario only (H0 keeps Pt_spoof = 0)
 			out = GPS_spoofing_sim_20250617(opts);
 			if isfield(out,'theta_sat_frac') && s == 2
 				theta_sat(g,r) = out.theta_sat_frac;
