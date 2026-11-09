@@ -443,9 +443,24 @@ holds for a horizontal swarm and neglects the azimuth mismatch of the
 routing~\eqref{eq:assign}; the exact first-order expression on the left
 retains it.
 
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{fig_geometry}
+\caption{Geometry of the residual~\eqref{eq:residual}, seen from the swarm
+centre. The replayed signal of satellite $s$ arrives from the direction
+$\hat{\mathbf{v}}_k$ of its ground transmitter instead of the satellite
+direction $\hat{\mathbf{e}}_s$. For a UAV displaced by
+$\boldsymbol{\delta}_u$ the two directions project differently onto
+$\boldsymbol{\delta}_u$, and since $\cos\theta_k>\cos\mathrm{el}_s$ the
+pseudorange error is negative towards the satellite azimuth: the fix is
+pushed outward and the formation is dilated.}
+\label{fig:geometry}
+\end{figure}
+
 For a ground array far from the swarm, $|\theta_k|$ is a few degrees, so
 $\cos\theta_k\approx1>\cos\mathrm{el}_s$ and the coefficient
-in~\eqref{eq:residual} is negative for every satellite. A UAV displaced
+in~\eqref{eq:residual} is negative for every satellite
+(Fig.~\ref{fig:geometry}). A UAV displaced
 \emph{towards} the azimuth of satellite $s$ measures a pseudorange
 \emph{shorter} than the rigid one, and a UAV displaced away from it a
 longer one. The least-squares fix interprets shorter ranges to the
@@ -693,12 +708,12 @@ Monte Carlo missions per spacing & $20$ \\
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{fig_scenario}
-\caption{Attack scenario (one epoch, $g=10$\,m). The swarm flies its
-mission (black square trajectory) inside a 10\,km circle of 24 fixed
-ground transmitters (triangles), each replaying one satellite; its
-computed position is displaced onto the decoy (star). Inset (noiseless
-run): the computed grid (red squares) against the true grid translated by
-the same offset (black circles, dashed outline). The formation is
+\caption{Attack scenario, one epoch at $g=10$\,m, in a local ENU frame.
+Left: the swarm flies its mission (black trajectory) inside a 10\,km
+circle of 24 fixed ground transmitters, each replaying one satellite;
+the computed centre is displaced onto the decoy. Right: the computed
+grid (red squares) against the true grid translated by the same
+displacement (black circles), from a noiseless run. The formation is
 dilated by 18\,\% at this epoch, not preserved.}
 \label{fig:scenario}
 \end{figure}
@@ -769,9 +784,9 @@ spread of the dilation across missions in Fig.~\ref{fig:distortion}.
 \includegraphics[width=\columnwidth]{fig_validation}
 \caption{First-order model vs.\ simulation on a noiseless attacked
 mission ($g=20$\,m, 240 epochs). Left: measured vs.\ predicted
-distortion $E$ from the first-order model~\eqref{eq:lsmodel} (dots) and
-from the crude scale $\kappa_0$~\eqref{eq:dilation} (crosses); dashed:
-bisector. Right: measured and predicted $E$ along the mission.}
+distortion $E$ from the first-order model~\eqref{eq:lsmodel} (dots)
+and from the crude scale $\kappa_0$~\eqref{eq:dilation} (crosses);
+dashed: bisector. Right: measured and predicted $E$ along the mission.}
 \label{fig:validation}
 \end{figure}
 
@@ -886,20 +901,20 @@ detectors remain at zero.
 \centering
 \includegraphics[width=\columnwidth]{fig_pd}
 \caption{Detection probability vs.\ formation spacing at $\PFA=10^{-2}$
-per epoch (20 missions; band: 95\,\% bootstrap CI). The collapse
-detectors never leave the $\PFA$ line; the two-sided majority test
-detects the dilation reliably from 15\,m and in a growing fraction of
-epochs below it.}
+per epoch (20 missions; band: 95\,\% bootstrap CI; dashed: $\PFA$). The
+collapse detectors never leave the $\PFA$ line; the two-sided majority
+test detects the dilation reliably from 15\,m, and from 12\,m with
+one-minute integration.}
 \label{fig:pd}
 \end{figure}
 
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{fig_roc}
-\caption{ROC curves at $g=10$\,m against the distributed ground attack.
-The collapse detectors lie below the chance line (separable, but in the
-opposite tail); the two-sided majority test lies near the top-left
-corner.}
+\caption{ROC curves at $g=10$\,m against the distributed ground attack
+(logarithmic $\PFA$ axis; dashed: chance). The collapse detectors lie
+below the chance line, i.e.\ separable but in the opposite tail; the
+two-sided tests lie above it.}
 \label{fig:roc}
 \end{figure}
 
