@@ -452,24 +452,9 @@ holds for a horizontal swarm and neglects the azimuth mismatch of the
 routing~\eqref{eq:assign}; the exact first-order expression on the left
 retains it.
 
-\begin{figure}[!t]
-\centering
-\includegraphics[width=\columnwidth]{fig_geometry}
-\caption{Geometry of the residual~\eqref{eq:residual}, seen from the swarm
-centre. The replayed signal of satellite $s$ arrives from the direction
-$\hat{\mathbf{v}}_k$ of its ground transmitter instead of the satellite
-direction $\hat{\mathbf{e}}_s$. For a UAV displaced by
-$\boldsymbol{\delta}_u$ the two directions project differently onto
-$\boldsymbol{\delta}_u$, and since $\cos\theta_k>\cos\mathrm{el}_s$ the
-pseudorange error is negative towards the satellite azimuth: the fix is
-pushed outward and the formation is dilated.}
-\label{fig:geometry}
-\end{figure}
-
 For a ground array far from the swarm, $|\theta_k|$ is a few degrees, so
 $\cos\theta_k\approx1>\cos\mathrm{el}_s$ and the coefficient
-in~\eqref{eq:residual} is negative for every satellite
-(Fig.~\ref{fig:geometry}). A UAV displaced
+in~\eqref{eq:residual} is negative for every satellite. A UAV displaced
 \emph{towards} the azimuth of satellite $s$ measures a pseudorange
 \emph{shorter} than the rigid one, and a UAV displaced away from it a
 longer one. The least-squares fix interprets shorter ranges to the
@@ -719,12 +704,12 @@ Monte Carlo missions per spacing & $20$ \\
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{fig_scenario}
-\caption{Attack scenario, one epoch at $g=10$\,m, in a local ENU frame.
-Left: the swarm flies its mission (black trajectory) inside a 10\,km
-circle of 24 fixed ground transmitters, each replaying one satellite;
-the computed centre is displaced onto the decoy. Right: the computed
-grid (red squares) against the true grid translated by the same
-displacement (black circles), from a noiseless run. The formation is
+\caption{Attack scenario, one epoch at $g=10$\,m. Left: the swarm flies
+its mission (black trajectory) inside a 10\,km circle of 24 fixed ground
+transmitters, each replaying one satellite; the computed centre is
+displaced onto the decoy. Right: the computed grid (red squares) against
+the true grid translated by the same displacement (black circles), from
+a noiseless run, as local offsets from each centre. The formation is
 dilated by 18\,\% at this epoch, not preserved.}
 \label{fig:scenario}
 \end{figure}
@@ -742,33 +727,24 @@ the no-attack noise floor throughout the mission.
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{fig_timeseries}
-\caption{One mission at $g=10$\,m ($\sigma_{\mathrm{pr}}=3$\,m). Top:
-distance between the computed and the true position of the centre UAV;
-it varies because the decoy is fixed while the swarm moves. Bottom:
-distortion $E$~\eqref{eq:E} with and without the attack.}
+\caption{Distortion $E$~\eqref{eq:E} along one mission at $g=10$\,m
+($\sigma_{\mathrm{pr}}=3$\,m), with and without the attack. The attack
+keeps $E$ above the noise floor throughout.}
 \label{fig:timeseries}
 \end{figure}
 
 The dilation $D$ has a median of $+22$\,\% over the 20 missions at
 $g=10$\,m (noiseless), but varies widely between missions, from $6.6$
 to $84$\,\% (10th--90th percentiles), depending on the elevations of the
-satellites in view. Figure~\ref{fig:distortion} shows the distortion $E$
-over the formation spacings. Under $H_0$, $E$ is pure GNSS noise and
-decays as $1/g$, from 22\,\% at $g=5$\,m to 4.6\,\% at 20\,m. Under
-attack, $E$ decreases from 38\,\% at 5\,m to 23\,\% at 20\,m, approaching
-the scale-free dilation as the noise contribution fades. The distortion
+satellites in view. Over the formation spacings, $E$ under $H_0$ is pure
+GNSS noise and decays as $1/g$, from 22\,\% at $g=5$\,m to 4.6\,\% at
+20\,m, while under attack it decreases only from 38\,\% to 23\,\%,
+approaching the scale-free dilation as the noise contribution fades. The
+distortion
 is a dilation, not a collapse: the median distance ratio
 $\operatorname{med}r_{ij}$ is $1.23$ under attack at $g=20$\,m against
 $1.01$ without attack ($1.37$ against $1.16$ at 5\,m, where noise biases
 both upward), and it exceeds one in every attacked epoch.
-
-\begin{figure}[!t]
-\centering
-\includegraphics[width=0.92\columnwidth]{fig_distortion}
-\caption{Distortion $E$~\eqref{eq:E} vs.\ formation spacing (median over
-20 missions; band: 10th--90th percentile across missions).}
-\label{fig:distortion}
-\end{figure}
 
 \subsection{Validation of the First-Order Model}
 \label{sec:validation}
@@ -786,7 +762,7 @@ $34.5\to24.4$), while the vertical component of the position error, an
 altitude tilt proportional to $\boldsymbol{\delta}_u$, contributes about
 a quarter of the three-dimensional distortion (hence $18.8\to24.4$). The
 dependence of $\mathbf{M}$ on the satellites in view also explains the
-spread of the dilation across missions in Fig.~\ref{fig:distortion}.
+spread of the dilation across missions.
 % CHECK: Fig. 7 covers one mission. Report the same agreement statistics
 % over all 20 missions (Section V-E claims agreement for every mission).
 
@@ -803,9 +779,11 @@ dashed: bisector. Right: measured and predicted $E$ along the mission.}
 
 \subsection{Detection Performance}
 \label{sec:detperf}
-Table~\ref{tab:pd} and Fig.~\ref{fig:pd} report $\PD$ at $\PFA=10^{-2}$
-with 95\,\% confidence intervals, Table~\ref{tab:auc} the ROC areas, and
-Fig.~\ref{fig:roc} the ROC curves at $g=10$\,m.
+Table~\ref{tab:pd} reports $\PD$ at $\PFA=10^{-2}$ with 95\,\%
+confidence intervals, and Table~\ref{tab:window} the effect of
+temporal integration. Figure~\ref{fig:roc} shows, for the two majority
+tests at $g=10$\,m, the full trade-off behind those single operating
+points.
 
 \begin{table*}[!t]
 \caption{Detection probability at $\PFA=10^{-2}$ per epoch against the
@@ -829,27 +807,6 @@ $g$ [m] & Jansen min & Jansen max & Jansen majority & Worst-pair & Two-sided maj
 \end{table*}
 
 \begin{table}[!t]
-\caption{ROC area (AUC). $0.5$ is chance; values below $0.5$ mean that
-the attack moves the statistic away from the alarm region (separable,
-but in the other tail).}
-\label{tab:auc}
-\centering
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{l ccccc}
-\toprule
-$g$ [m] & J.\ min & J.\ max & J.\ maj. & Worst-pair & 2-sided maj. \\
-\midrule
- 5 & 0.312 & 0.430 & 0.171 & 0.570 & 0.829 \\
- 8 & 0.262 & 0.378 & 0.072 & 0.622 & 0.928 \\
-10 & 0.221 & 0.349 & 0.037 & 0.651 & 0.963 \\
-12 & 0.189 & 0.324 & 0.019 & 0.676 & 0.981 \\
-15 & 0.156 & 0.293 & 0.006 & 0.706 & 0.994 \\
-20 & 0.122 & 0.255 & 0.001 & 0.743 & 0.999 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[!t]
 \caption{Two-sided tests with 1-min temporal integration (moving mean
 over 12 epochs): $\PD$ at $\PFA=10^{-2}$ per epoch, 95\,\% CI.}
 \label{tab:window}
@@ -871,16 +828,21 @@ $g$ [m] & Worst-pair, 1-min & Two-sided majority, 1-min \\
 \emph{Collapse tests.} As expected from the sign of the distortion, the
 three Jansen variants never detect the dilation: $\PD\le0.011$ (95\,\%
 upper bound) at every spacing, at or below the false-alarm rate. Their
-AUC is \emph{below} chance, down to $0.001$ for the majority variant at
-20\,m. This does not mean that the attack is invisible: for the majority
-variant, the attacked statistic is larger than the authentic one in
-almost every epoch from 10\,m upward, i.e.\ the two are separable, but on
-the side that a collapse test does not examine. The majority variant,
-the one recommended in~\cite{jansen2016multireceiver}, never fires, and
-no choice of threshold changes this.
+ROC area is \emph{below} chance, falling from $0.31$, $0.43$ and $0.17$
+at $g=5$\,m to $0.12$, $0.26$ and $0.001$ at 20\,m for the minimal,
+maximal and majority variants. This does not mean that the attack is
+invisible: the two distributions are separable, but on the side that a
+collapse test does not examine. The majority variant, the one
+recommended in~\cite{jansen2016multireceiver}, reports exactly zero at
+every spacing, and no choice of threshold changes this: its statistic
+under attack has a minimum of $1.04$ over the 4800 attacked epochs,
+while the $H_0$ threshold that yields $\PFA=10^{-2}$ is $1.03$ at 5\,m
+and $0.98$ at 10--20\,m, so the attacked statistic never enters the
+alarm region.
 
 \emph{Worst-pair test.} The worst-pair test is masked by noise: $\PD$
-rises only from $0.03$ at 5\,m to $0.26$ at 20\,m (AUC $0.57$--$0.74$),
+rises only from $0.03$ at 5\,m to $0.26$ at 20\,m (ROC area $0.57$ to
+$0.74$),
 with wide confidence intervals that reflect the variability of the
 dilation across missions. The statistic~\eqref{eq:cons} is governed by
 the noisiest of 300 pairs, and at $\sigma_{\mathrm{pr}}=3$\,m the $H_0$
@@ -892,7 +854,8 @@ $0.12$--$0.38$ (Table~\ref{tab:window}).
 averages the noise over all pairs and retains the common bias, which is
 the signature of a ground array. It detects the dilation in $0.38$ of
 the epochs at 5\,m, $0.57$--$0.71$ at 8--12\,m, and reliably from 15\,m
-($0.85$ at 15\,m, $0.98$ at 20\,m), with AUC from $0.83$ to $0.999$. At
+($0.85$ at 15\,m, $0.98$ at 20\,m), with ROC area from $0.83$ at 5\,m to
+$0.999$ at 20\,m. At
 10\,m its ROC (Fig.~\ref{fig:roc}) mirrors that of the collapse majority
 test: the same statistic, tested in the other tail. With one-minute
 integration it reaches $\PD=0.52$ at 5\,m, $0.80$ at 10\,m, $0.93$ at
@@ -910,22 +873,12 @@ detectors remain at zero.
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=\columnwidth]{fig_pd}
-\caption{Detection probability vs.\ formation spacing at $\PFA=10^{-2}$
-per epoch (20 missions; band: 95\,\% bootstrap CI; dashed: $\PFA$). The
-collapse detectors never leave the $\PFA$ line; the two-sided majority
-test detects the dilation reliably from 15\,m, and from 12\,m with
-one-minute integration.}
-\label{fig:pd}
-\end{figure}
-
-\begin{figure}[!t]
-\centering
 \includegraphics[width=\columnwidth]{fig_roc}
-\caption{ROC curves at $g=10$\,m against the distributed ground attack
-(logarithmic $\PFA$ axis; dashed: chance). The collapse detectors lie
-below the chance line, i.e.\ separable but in the opposite tail; the
-two-sided tests lie above it.}
+\caption{ROC of the two majority tests at $g=10$\,m, on the same
+statistic $\operatorname{med}r_{ij}$ (logarithmic $\PFA$ axis). The
+collapse test lies below the chance line because the dilation moves the
+statistic into the tail it does not examine; the two-sided test, which
+examines both tails, lies well above it.}
 \label{fig:roc}
 \end{figure}
 
@@ -1016,13 +969,11 @@ altitudes, i.e.\ the line-of-sight placement.
 \centering
 \includegraphics[width=\columnwidth]{fig_sweep}
 \caption{Transmitter altitude sweep (24 transmitters, 10\,km array,
-$g=10$\,m, 20 missions). Top: signed dilation $D$ (median and
-10th--90th percentiles over the missions) and distortion $E$ (measured,
-and predicted by the first-order model~\eqref{eq:lsmodel}), all from
-noiseless runs. Middle: $\PD$ at $\PFA=10^{-2}$ with noise (bands:
-95\,\% CI). Bottom: $\PD$ of each mission against its dilation $D$, for
-all altitudes and placements; the two-sided majority test is blind for
-$D\in[-8,+5]\,\%$, and the collapse test fires only for contractions.}
+$g=10$\,m, 20 missions). Top: signed dilation $D$ from noiseless runs
+(median and 10th--90th percentiles over the missions); the shaded band
+is the blind window $D\in[-8,+5]\,\%$ of the two-sided majority test.
+Bottom: $\PD$ at $\PFA=10^{-2}$ with noise (bands: 95\,\% CI). The two
+tests exchange roles as the dilation turns into a contraction.}
 \label{fig:sweep}
 \end{figure}
 
