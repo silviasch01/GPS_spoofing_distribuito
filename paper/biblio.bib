@@ -1,6 +1,10 @@
 % ---------------------------------------------------------------------------
-% Bibliography for "Formation-Preserving Distributed GNSS Spoofing..."
-% Fields that could not be verified against the publisher are marked in `note'.
+% Bibliography for "Ground-Based Distributed GNSS Spoofing of UAV Swarms..."
+% Entries whose publisher-side fields could not be fully verified are flagged
+% in a trailing %-comment, NOT in a `note' field, so they are not printed.
+% Revision: [cheng2025distributed] identified (was "Anonymous");
+% Kalantari article number corrected (8, not 5); added [kerns2014capture]
+% and [euspa2025osnma]; Bi et al. arXiv id added.
 % ---------------------------------------------------------------------------
 
 % ------------------- multi-receiver relative-distance detection ------------
@@ -43,6 +47,7 @@
   address   = {Nashville, TN, USA}
 }
 
+% title field unverified against the proceedings
 @inproceedings{swaszek2017platoon,
   author    = {Swaszek, Peter F. and Hartnett, Richard J. and Seals, Kelly C.},
   title     = {{GNSS} Spoof Detection Using Independent Range Information},
@@ -50,8 +55,7 @@
   pages     = {2838--2853},
   year      = {2017},
   address   = {Portland, OR, USA},
-  doi       = {10.33012/2017.15338},
-  note      = {Title field unverified}
+  doi       = {10.33012/2017.15338}
 }
 
 @article{stenberg2022multiple,
@@ -65,15 +69,15 @@
   doi     = {10.33012/navi.510}
 }
 
+% article number verified on the publisher PDF: (2020) 2020:8
 @article{kalantari2020rigidbody,
   author  = {Kalantari, Ashkan and Larsson, Erik G.},
   title   = {Statistical Test for {GNSS} Spoofing Attack Detection by Using Multiple Receivers on a Rigid Body},
   journal = {EURASIP Journal on Advances in Signal Processing},
   volume  = {2020},
-  number  = {5},
+  pages   = {8},
   year    = {2020},
-  doi     = {10.1186/s13634-020-0663-z},
-  note    = {Article number unverified (5 or 8)}
+  doi     = {10.1186/s13634-020-0663-z}
 }
 
 @inproceedings{mykytyn2023uwb,
@@ -84,25 +88,14 @@
   doi       = {10.1109/MECO58584.2023.10154998}
 }
 
+% publisher DOI to be added (arXiv:2312.03787, accepted by TIFS Dec. 2023)
 @article{bi2024sdp,
-  author  = {Bi, Haoyu and Li, Xiaofan and Hu, Jun and Ni, Wei and Wang, Yang and Wang, Xin},
+  author  = {Bi, Siguo and Li, Kai and Hu, Shuyan and Ni, Wei and Wang, Cong and Wang, Xin},
   title   = {Detection and Mitigation of Position Spoofing Attacks on Cooperative {UAV} Swarm Formations},
   journal = {IEEE Transactions on Information Forensics and Security},
   volume  = {19},
   pages   = {1883--1895},
-  year    = {2024},
-  note    = {arXiv:2312.03787; DOI to be added}
-}
-
-@article{heng2015cooperative,
-  author  = {Heng, Liang and Work, Daniel B. and Gao, Grace Xingxin},
-  title   = {{GPS} Signal Authentication From Cooperative Peers},
-  journal = {IEEE Transactions on Intelligent Transportation Systems},
-  volume  = {16},
-  number  = {4},
-  pages   = {1794--1805},
-  year    = {2015},
-  doi     = {10.1109/TITS.2014.2372000}
+  year    = {2024}
 }
 
 @article{borio2016sumofsquares,
@@ -116,15 +109,24 @@
   doi     = {10.1109/TAES.2016.150148}
 }
 
+% ------------------------------ detection theory ---------------------------
+
+@book{kay1998detection,
+  author    = {Kay, Steven M.},
+  title     = {Fundamentals of Statistical Signal Processing, Volume {II}: Detection Theory},
+  publisher = {Prentice Hall},
+  year      = {1998},
+  address   = {Upper Saddle River, NJ, USA}
+}
+
 % ------------------------------ GNSS/INS fusion ----------------------------
 
+% publisher DOI unverified; preprint arXiv:2105.01860
 @inproceedings{sathaye2022semperfi,
   author    = {Sathaye, Harshad and LaMountain, Gerald and Closas, Pau and Ranganathan, Aanjhan},
   title     = {{SemperFi}: Anti-spoofing {GPS} Receiver for {UAVs}},
   booktitle = {Proceedings of the Network and Distributed System Security Symposium (NDSS)},
-  year      = {2022},
-  doi       = {10.14722/ndss.2022.23184},
-  note      = {DOI unverified; preprint arXiv:2105.01860}
+  year      = {2022}
 }
 
 @article{tanil2018insmonitor,
@@ -138,6 +140,7 @@
   doi     = {10.1109/TAES.2017.2739924}
 }
 
+% title field unverified
 @article{kujur2024insmonitor,
   author  = {Kujur, Birendra and Khanafseh, Samer and Pervan, Boris},
   title   = {Detecting {GNSS} Spoofing Using Temporal Behavior of Innovation Sequences},
@@ -146,28 +149,10 @@
   number  = {1},
   pages   = {navi.629},
   year    = {2024},
-  doi     = {10.33012/navi.629},
-  note    = {Title field unverified}
+  doi     = {10.33012/navi.629}
 }
 
-% ------------- coordinated / formation-preserving spoofing attacks ---------
-
-@inproceedings{tibaldo2025gnsswasp,
-  author    = {Tibaldo, Christopher and Sathaye, Harshad and Camurati, Giovanni and {\v{C}}apkun, Srdjan},
-  title     = {{GNSS-WASP}: {GNSS} Wide Area {SPoofing}},
-  booktitle = {Proceedings of the 34th USENIX Security Symposium},
-  pages     = {7039--7058},
-  year      = {2025},
-  publisher = {USENIX Association}
-}
-
-@misc{park2026rigidshift,
-  author       = {Park, Minseok and Yoo, Joon Soo},
-  title        = {Rigid-Covert {GNSS} Spoofing of {UAV} Swarms: A Structural Blind Spot, Its Detection Limit, and Absolute-Anchor Defenses},
-  year         = {2026},
-  howpublished = {arXiv:2608.06885},
-  note         = {Preprint, not peer-reviewed}
-}
+% ------------- coordinated / distributed / formation-preserving attacks ----
 
 @article{ceccato2020spatial,
   author  = {Ceccato, Marco and Formaggio, Francesco and Tomasin, Stefano},
@@ -179,14 +164,53 @@
   doi     = {10.1109/TSP.2020.3028752}
 }
 
+% impacts of a single spoofer on multiple receivers (<=9 bound, to verify)
+@inproceedings{chen2024singlespoofer,
+  author    = {Chen, Wenxin and Dong, Yingfei and Duan, Zhenhai},
+  title     = {Impacts of a Single {GPS} Spoofer on Multiple Receivers: Formal Analysis and Experimental Evaluation},
+  booktitle = {2024 IEEE 21st Consumer Communications \& Networking Conference (CCNC)},
+  pages     = {127--134},
+  year      = {2024},
+  doi       = {10.1109/CCNC51664.2024.10454872}
+}
+
+% title field unverified
 @inproceedings{chen2025swarmspoofing,
-  author    = {Chen, Yuan and Dong, Xiaoyu and Duan, Ran},
+  author    = {Chen, Wenxin and Dong, Yingfei and Duan, Zhenhai},
   title     = {{GPS} Swarm Spoofing: Theoretical Analysis and Practical Solutions},
   booktitle = {Proceedings of the IEEE International Conference on Communications (ICC)},
   pages     = {3345--3350},
   year      = {2025},
-  doi       = {10.1109/ICC52391.2025.11161002},
-  note      = {Title field unverified}
+  doi       = {10.1109/ICC52391.2025.11161002}
+}
+
+% authors and pages from the VT and HKU repository records
+% (hdl.handle.net/10919/136953); ACM DOI to be added
+@inproceedings{cheng2025distributed,
+  author    = {Cheng, Xiang and Yang, Hanchao and Liu, Shinan and Yang, Yaling},
+  title     = {Distributed Multi-Antenna {GPS} Spoofing Attack using Off-The-Shelf Devices},
+  booktitle = {Proceedings of the 18th ACM Conference on Security and Privacy in Wireless and Mobile Networks (WiSec)},
+  pages     = {28--39},
+  year      = {2025},
+  publisher = {ACM}
+}
+
+@inproceedings{tibaldo2025gnsswasp,
+  author    = {Tibaldo, Christopher and Sathaye, Harshad and Camurati, Giovanni and {\v{C}}apkun, Srdjan},
+  title     = {{GNSS-WASP}: {GNSS} Wide Area {SPoofing}},
+  booktitle = {Proceedings of the 34th USENIX Security Symposium},
+  pages     = {7039--7058},
+  year      = {2025},
+  publisher = {USENIX Association}
+}
+
+% arXiv preprint: check whether a peer-reviewed version exists before submission
+@misc{park2026rigidshift,
+  author       = {Park, Minseok and Yoo, Joon Soo},
+  title        = {Rigid-Covert {GNSS} Spoofing of {UAV} Swarms: A Structural Blind Spot, Its Detection Limit, and Absolute-Anchor Defenses},
+  year         = {2026},
+  howpublished = {arXiv:2608.06885},
+  note         = {Preprint}
 }
 
 @article{aspnes2006localization,
@@ -198,6 +222,19 @@
   pages   = {1663--1678},
   year    = {2006},
   doi     = {10.1109/TMC.2006.174}
+}
+
+% ------------------------------- UAV spoofing ------------------------------
+
+@article{kerns2014capture,
+  author  = {Kerns, Andrew J. and Shepard, Daniel P. and Bhatti, Jahshan A. and Humphreys, Todd E.},
+  title   = {Unmanned Aircraft Capture and Control Via {GPS} Spoofing},
+  journal = {Journal of Field Robotics},
+  volume  = {31},
+  number  = {4},
+  pages   = {617--636},
+  year    = {2014},
+  doi     = {10.1002/rob.21513}
 }
 
 % ------------------------------- surveys -----------------------------------
@@ -223,18 +260,30 @@
   doi     = {10.1109/ACCESS.2023.3281731}
 }
 
+% author first names / conference expansion unverified
 @inproceedings{sebastian2026survey,
   author    = {Sebastian, Anu and Manjith, B. C.},
   title     = {A Comprehensive Survey of {GPS} Spoofing Attack Detection Techniques in {UAV} Systems},
   booktitle = {2026 IEEE International Conference on Intelligent Technologies, Systems and Innovation Frontiers (ICITSIF)},
   pages     = {1041--1046},
   year      = {2026},
-  doi       = {10.1109/ICITSIF69060.2026.11609121},
-  note      = {Author first names and conference expansion unverified}
+  doi       = {10.1109/ICITSIF69060.2026.11609121}
+}
+
+% ------------------------- GNSS authentication -----------------------------
+
+% OSNMA Initial Service declared operational on 24 July 2025 (EUSPA / EC)
+@misc{euspa2025osnma,
+  author       = {{European Union Agency for the Space Programme (EUSPA)}},
+  title        = {Galileo Open Service Navigation Message Authentication ({OSNMA}): Initial Service Declaration},
+  year         = {2025},
+  howpublished = {\url{https://www.euspa.europa.eu/galileo-osnma}},
+  note         = {Initial service declared operational on 24 July 2025}
 }
 
 % --------------------- typical inter-UAV spacing (formation flight) --------
 
+% author list to be confirmed on the DOI page; check whether RTK was used
 @article{cheok2022formation,
   author  = {Cheok, Jun Hong and Aparow, Vimal Rau and Ng, Juno Zhi Neng and Cheah, Jian Lee and Leong, Dickson},
   title   = {Development and Optimization of Formation Flying for Unmanned Aerial Vehicles Using Particle Swarm Optimization Based on Reciprocal Velocity Obstacles},
@@ -243,10 +292,10 @@
   number  = {2},
   pages   = {171--184},
   year    = {2022},
-  doi     = {10.4271/01-15-02-0011},
-  note    = {Author list to be confirmed on the DOI page}
+  doi     = {10.4271/01-15-02-0011}
 }
 
+% authors, volume, issue, pages confirmed (NWPU research portal); DOI to be added
 @article{guo2025separation,
   author  = {Guo, Pengjun and Zhang, Rui and Xu, Bin},
   title   = {Safety Separation Distance Design for {UAV} Formation Based on System Performance},
@@ -254,10 +303,7 @@
   volume  = {61},
   number  = {3},
   pages   = {5980--5995},
-  year    = {2025},
-  note    = {DOI to be added}
-}
-
+  year    = {2025}
 }
 
 % ------------------------- spoofer implementation / channel ----------------
@@ -269,6 +315,17 @@
   pages     = {2314--2325},
   year      = {2008},
   address   = {Savannah, GA, USA}
+}
+
+% OUR PRIOR WORK --- complete all fields from IEEE Xplore document 11587831
+% (https://ieeexplore.ieee.org/document/11587831). The printed note below is
+% a reminder; remove it once the entry is filled in.
+@inproceedings{schilleci2025channel,
+  author    = {Schilleci, Silvia and others},
+  title     = {[title --- complete from IEEE Xplore document 11587831]},
+  booktitle = {Proc. IEEE Conf.},
+  year      = {2025},
+  note      = {IEEE Xplore document no.~11587831; complete citation fields before submission}
 }
 
 @article{alhourani2018cellular,
