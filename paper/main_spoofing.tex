@@ -363,9 +363,19 @@ transmitters the azimuth mismatch is at most $7.5^\circ$. The
 transmitters never move; only the routing is updated, which requires the
 attacker to track the true position of the swarm centre, the same
 knowledge it needs to calibrate the replayed delays.
-% CHECK: when a satellite is re-routed to another transmitter, the replayed
-% delay jumps for every UAV except the centre. Say whether the simulator
-% smooths this and whether the transient is visible in the fixes.
+
+When a satellite is re-routed, the replayed delay changes abruptly for
+every UAV except the centre, by the difference between the two
+propagation residuals of~\eqref{eq:power}. The simulator applies no
+smoothing, so this is the worst case for the attacker. Re-routing is
+rare: at $g=10$\,m it affects 2.2\,\% of the satellite-epochs
+(0.15 satellites per epoch on average), because consecutive
+transmitters are $15^\circ$ apart in azimuth while the satellites move
+slowly. Its effect on the computed formation is visible but
+occasional: the per-epoch dilation changes by 0.5 percentage points
+between consecutive epochs in the median, with a largest jump of 12.8
+points over a mission. A real attacker could hand a satellite over
+gradually, which would remove these transients.
 
 \emph{Ground-to-UAV channel.}
 The spoofing signals travel over a ground-to-air link, modelled with the
@@ -409,7 +419,6 @@ path and measures
 \frac{\lVert\mathbf{q}_k-\ptrue{u}\rVert-\lVert\mathbf{q}_k-\mathbf{p}^{\mathrm{ctr}}\rVert}{c},
 \label{eq:power}
 \end{equation}
-% CHECK: sign convention of the clock term (-delta t_u) against the code.
 where $\mathbf{q}_k$ is the transmitter position and both norms are true
 three-dimensional slant distances. The last term is the propagation
 residual: it vanishes for the centre UAV, which computes exactly the
@@ -469,13 +478,19 @@ along $\boldsymbol{\delta}_u$. Every UAV is thus pushed outward along
 its own displacement from the centre, and the computed formation is
 \emph{dilated}. The coefficient vanishes only when
 $|\cos\theta_k|=\cos\mathrm{el}_s$, i.e.\ for satellites near the
-horizon or for transmitters seen at an angle comparable to the satellite
-elevation: transmitters raised in altitude (Section~\ref{sec:sweep}) or,
-in principle, close to the swarm and seen at a comparable depression
-angle.
-% CHECK: the depression-angle case follows from (5) because cos is even;
-% it may explain the smaller deformation inside the 2.5 km array
-% (Section V-D). Verify with the simulator before keeping this sentence.
+horizon or when $|\theta_k|$ approaches $\mathrm{el}_s$. Since the cosine
+is even, this happens either for transmitters raised in altitude
+(Section~\ref{sec:sweep}) or, symmetrically, for transmitters seen at a
+comparable \emph{depression} angle, i.e.\ close to the swarm and well
+below it. We verified the second branch by placing the array 1\,km below
+the swarm: at horizontal ranges of 5, 2 and 1\,km the median transmitter
+elevation is $-14.7^\circ$, $-34.9^\circ$ and $-58.1^\circ$, and the
+signed dilation is $+22.0$\,\%, $+5.4$\,\% and $-22.7$\,\%. It crosses
+zero near $|\theta_k|=35^\circ$, where $\cos\theta_k$ matches the mean
+$\cos\mathrm{el}_s$ of the constellation, as~\eqref{eq:residual}
+predicts. A low array very close to the swarm is therefore an
+alternative to altitude, at the cost of a coverage area of the same size
+as the stand-off distance.
 
 \emph{Predicted dilation.} Let $\mathbf{G}$ be the geometry matrix of
 the four-unknown fix, with rows $[-\hat{\mathbf{e}}_s^{\mathsf T},\,1]$,
@@ -496,8 +511,6 @@ clock row. The predicted computed distance of each pair is
 $\lVert(\mathbf{I}+\mathbf{M})(\boldsymbol{\delta}_i-\boldsymbol{\delta}_j)\rVert$,
 including the vertical component of the error. We refer
 to~\eqref{eq:lsmodel} as the \emph{first-order model}.
-% CHECK: confirm that the code builds M exactly in this form (sign of G,
-% clock column) and that p^dec is the decoy fix of the centre UAV.
 A cruder estimate follows by matching~\eqref{eq:residual}, for a single
 satellite, with the position response
 $-\hat{\mathbf{e}}_s\!\cdot\!\Delta\mathbf{p}$ under the assumption
@@ -673,8 +686,6 @@ D=\operatorname*{med}_{t}\;\operatorname*{med}_{i<j}\frac{\hat{d}_{ij}(t)-d_{ij}
 is measured on noiseless runs of a mission. It is positive for a
 dilation and negative for a contraction, and it isolates the effect of
 the attack geometry.
-% CHECK: confirm that D in the code is the median over epochs of the
-% per-epoch median over pairs (noiseless), as written in (11).
 
 \begin{table}[!t]
 \caption{Simulation parameters.}
@@ -920,17 +931,20 @@ two-sided tests lie above it.}
 
 \subsection{Sensitivity to the Attack Geometry}
 \label{sec:sweep}
-\emph{Array enclosure.} The deformation depends critically on the array
-enclosing the operating area. With a 2.5\,km array centred on the start
-point, the swarm is inside the circle only 26\,\% of the time, and the
-deformation grows from 12\,\% inside to 55\,\% outside (correlation
-$0.98$ with the distance from the array centre). From outside the array,
-all transmitters lie in a narrow angular sector and no routing can match
-the satellite azimuths. The rest of this subsection uses the enclosing
-10\,km array and varies the transmitter altitude.
-% CHECK: explain why the deformation inside the 2.5 km array (12 %) is
-% smaller than with the 10 km array (22 %) -- see the depression-angle
-% remark in Section III-C.
+\emph{Array enclosure.} The attack requires an array that encloses the
+operating area, and what fails outside it is the azimuth routing, not
+the elevation mismatch. With a 2.5\,km array centred on the start point
+the swarm leaves the circle for 75\,\% of the mission. While it is
+inside, the routing matches the satellite azimuths to within
+$4.6^\circ$ (median) and the signed dilation is $+24.9$\,\%, the same
+regime as the enclosing 10\,km array ($+22$\,\%), as expected
+from~\eqref{eq:residual}, which does not depend on the stand-off
+distance. Once the swarm is outside, every transmitter lies in a narrow
+angular sector behind it, the median azimuth mismatch of the routing
+rises to $83.5^\circ$, and the formation is no longer dilated but
+strongly contracted ($-46$\,\%), which a two-sided test detects
+immediately. The rest of this subsection uses the enclosing 10\,km array
+and varies the transmitter altitude.
 
 \emph{Transmitter altitude.}
 By~\eqref{eq:residual}, the dilation decreases as the transmitters are
@@ -1038,9 +1052,11 @@ LOS, $R_{\mathrm{los}}=10$\,km & $+0.3$ & 4.3  & 0.09 (0.44) & 0.04 (0.53) & 0.1
 satellite visible at the start of the mission, placed on its line of
 sight from the array centre at slant range $R_{\mathrm{los}}$ (altitude
 $R_{\mathrm{los}}\sin\mathrm{el}_s$, up to 9\,km for
-$R_{\mathrm{los}}=10$\,km). \todo{state how satellites that rise during
-the mission are handled: unspoofed (authentic), dropped, or assigned to
-the nearest transmitter}. Such a constellation is on the lines of sight
+$R_{\mathrm{los}}=10$\,km). The constellation is built once, from the
+satellites visible at the first epoch; a satellite that rises later is
+routed by~\eqref{eq:assign} to the transmitter closest in azimuth, which
+sits on another satellite's line of sight, so it is spoofed but with a
+larger residual. Such a constellation is on the lines of sight
 only for a swarm near the reference point, as in GNSS-WASP, whose bias
 grows with the distance from it. The experiment therefore uses a
 loitering mission confined within 700\,m of the centre, and compares it
